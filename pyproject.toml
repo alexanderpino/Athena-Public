@@ -56,7 +56,6 @@ cloud = [
     "supabase>=2.0.0",
 ]
 full = [
-    "athena-agent[search,cloud]",
     "google-generativeai>=0.7.0",
     "supabase>=2.0.0",
     "anthropic>=0.40.0",

@@ -68,7 +68,7 @@ def run_quicksave(summary: str, project_root: Optional[Path] = None) -> bool:
     timestamp = datetime.now().strftime("%H:%M")
     checkpoint = f"\n\n### ⚡ Checkpoint [{timestamp}]\n{summary}\n"
 
-    with open(session_file, "a") as f:
+    with open(session_file, "a", encoding="utf-8") as f:
         f.write(checkpoint)
 
     print(f"✅ Quicksave [{timestamp}] → {session_file.name}")

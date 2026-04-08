@@ -9,6 +9,9 @@ import sys
 import argparse
 from pathlib import Path
 
+project_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(project_root / "examples" / "scripts"))
+
 from lib.shared_utils import setup_paths, log_violation
 
 setup_paths()

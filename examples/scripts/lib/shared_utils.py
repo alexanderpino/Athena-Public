@@ -7,11 +7,9 @@ Reduces redundancy across searching, logging, and telemetry.
 import os
 import sys
 import hashlib
-import requests
 from pathlib import Path
 from functools import lru_cache
 from dotenv import load_dotenv
-from supabase import create_client, Client
 
 # --- PATH RESOLUTION ---
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -38,6 +36,7 @@ def load_athena_env():
 @lru_cache(None)
 def get_supabase_client():
     """Singleton Supabase client."""
+    from supabase import create_client
     env = load_athena_env()
     if not env["SUPABASE_URL"] or not env["SUPABASE_KEY"]:
         raise ValueError("Missing Supabase credentials in .env")
@@ -48,6 +47,7 @@ def get_supabase_client():
 @lru_cache(maxsize=128)
 def _get_embedding_cached(text_hash: str, text: str, api_key: str) -> tuple:
     """Internal cached embedding function."""
+    import requests
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}"
     payload = {
         "model": "models/gemini-embedding-001",
