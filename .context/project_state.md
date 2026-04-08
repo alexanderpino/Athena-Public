@@ -15,6 +15,10 @@
 
 ## Recent Context & Discoveries
 
+- **.NET Project Index (`NET_PROJECT_INDEX.json`)**:
+  - A searchable index mapping all 842 .NET projects across `c:\repos` has been generated.
+  - Stored in `.context/NET_PROJECT_INDEX.json`. Query this file for rapid, token-efficient discovery of project names, paths, references, and keywords instead of running global globs or greps.
+
 - **.NET Dependency Analysis**: 
   - Analyzed `<ProjectReference>` tags across `Libraries`, `Core`, and `services-*` repositories.
   - The `Libraries` folder acts as the decoupled foundational layer (`Common`, `Configuration`, `Logging`, `DataAccess`).
