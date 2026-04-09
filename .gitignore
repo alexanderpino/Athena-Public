@@ -51,3 +51,5 @@ npm-debug.log*
 session_logs/
 venv/
 /.claude/skills
+/books/*.pdf
+/books/**/*.pdf
