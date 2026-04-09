@@ -1,0 +1,8 @@
+{
+  "run_id": "eval-0-without_skill",
+  "expectations": [
+    {"text": "Has syllabus with Levels 1-4", "passed": false, "evidence": "Uses Phases 0-5 structure instead of DLL Levels 1-4."},
+    {"text": "Identifies official docs with CS: 1.0", "passed": false, "evidence": "Identifies official docs but does not use the CS scoring system."},
+    {"text": "Proposes a Phase 1 '15-minute win' project", "passed": false, "evidence": "Mentions Hello World but not the specific DLL terminology."}
+  ]
+}

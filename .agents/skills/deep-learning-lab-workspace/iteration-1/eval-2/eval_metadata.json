@@ -1,0 +1,9 @@
+{
+  "eval_id": 2,
+  "eval_name": "obscure-library",
+  "prompt": "I need to master the 'libunwind' library. How should I approach it?",
+  "assertions": [
+    {"name": "identifies_canonical_home", "description": "Check if libunwind canonical home is identified."},
+    {"name": "mentions_dwarf_or_signal_safety", "description": "Check if DWARF CFI or signal-safety is mentioned."}
+  ]
+}

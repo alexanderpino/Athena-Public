@@ -1,0 +1,26 @@
+{
+  "skill_name": "deep-learning-lab",
+  "evals": [
+    {
+      "id": 0,
+      "name": "zig-mastery",
+      "prompt": "I want to learn everything about Zig. I have 'Zig Language Reference' and I want to cross-reference with the official docs. Please create a syllabus and start with Phase 0.",
+      "expected_output": "The response should include a structured syllabus for Zig (Levels 1-4), a Phase 0 summary, the official documentation home, and a plan for Phase 1. It should mention the credibility scoring for sources.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "react-expert",
+      "prompt": "I want to become a React expert. Make me a learning plan. Rank official docs highest and StackOverflow lowest.",
+      "expected_output": "The response should explicitly reference the DLL Credibility Matrix, placing React.dev at Tier 1 (1.0) and StackOverflow at Tier 3 (0.4). It should provide a React-specific syllabus.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "obscure-library",
+      "prompt": "I need to master the 'libunwind' library. How should I approach it?",
+      "expected_output": "The response should use the DLL Phase 0 workflow to locate the canonical home for libunwind and identify core architectural concepts like dwarf-based unwinding.",
+      "files": []
+    }
+  ]
+}

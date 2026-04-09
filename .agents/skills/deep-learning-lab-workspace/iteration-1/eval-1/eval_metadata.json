@@ -1,0 +1,10 @@
+{
+  "eval_id": 1,
+  "eval_name": "react-expert",
+  "prompt": "I want to become a React expert. Make me a learning plan. Rank official docs highest and StackOverflow lowest.",
+  "assertions": [
+    {"name": "ranks_official_1_0", "description": "Check if official docs are ranked at 1.0."},
+    {"name": "ranks_stackoverflow_0_4", "description": "Check if StackOverflow is ranked at 0.4."},
+    {"name": "mentions_react_19", "description": "Check if React 19 is mentioned."}
+  ]
+}

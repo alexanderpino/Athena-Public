@@ -1,0 +1,7 @@
+{
+  "run_id": "eval-2-without_skill",
+  "expectations": [
+    {"text": "Identifies canonical home", "passed": true, "evidence": "Identifies Savannah and LLVM."},
+    {"text": "Mentions DWARF CFI or signal-safety", "passed": true, "evidence": "Mentions both."}
+  ]
+}

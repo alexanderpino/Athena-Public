@@ -1,0 +1,8 @@
+{
+  "run_id": "eval-1-without_skill",
+  "expectations": [
+    {"text": "Ranks official docs at 1.0", "passed": false, "evidence": "Ranks them highly but does not use CS: 1.0 scoring."},
+    {"text": "Ranks StackOverflow at 0.4", "passed": false, "evidence": "Ranks it lowest but does not use CS: 0.4 scoring."},
+    {"text": "Mentions React 19", "passed": true, "evidence": "Mentions React 19."}
+  ]
+}

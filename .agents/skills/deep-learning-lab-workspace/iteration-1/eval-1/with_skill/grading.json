@@ -1,0 +1,8 @@
+{
+  "run_id": "eval-1-with_skill",
+  "expectations": [
+    {"text": "Ranks official docs at 1.0", "passed": true, "evidence": "React.dev is Tier 1 (1.0)."},
+    {"text": "Ranks StackOverflow at 0.4", "passed": true, "evidence": "StackOverflow is Tier 3 (0.4)."},
+    {"text": "Mentions React 19", "passed": true, "evidence": "Title says React 19 & 19.2+."}
+  ]
+}

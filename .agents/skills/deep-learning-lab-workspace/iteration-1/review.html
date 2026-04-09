@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "deep-learning-lab", "runs": [{"id": "eval-0-with_skill", "prompt": "I want to learn everything about Zig. I have 'Zig Language Reference' and I want to cross-reference with the official docs. Please create a syllabus and start with Phase 0.", "eval_id": 0, "outputs": [{"name": "research_plan.md", "type": "text", "content": "# \u00f0\u0178\u201d\ufffd Zig Learning Research Plan\n\nThis plan outlines the systematic research steps to validate the syllabus and gather the necessary material for Phases 1-3.\n\n## \u00f0\u0178\u017d\u00af Primary Objectives\n1.  **Validate the \"Syllabus of Truth\":** Cross-reference the proposed syllabus with the latest official Zig documentation (v0.14.0/Master).\n2.  **Identify Modern Idioms:** Separate legacy advice (especially regarding `async` and old build system syntax) from current best practices.\n3.  **Establish Validation Points:** Identify key coding patterns that distinguish \"Good Zig\" from \"C-style Zig.\"\n\n---\n\n## \u00f0\u0178\u201c\u2026 Phases & Tasks\n\n### \u00f0\u0178\u0152\u2018 Phase 0: Scoping (Current)\n- [x] Identify official documentation URLs.\n- [x] Construct preliminary syllabus.\n- [ ] **Next:** Search for changes in v0.14.0 compared to v0.13.0 to ensure the syllabus is forward-looking.\n- [ ] **Next:** Identify 3-5 \"Field Reports\" (Tier 3 sources) that provide high-quality community context.\n\n### \u00f0\u0178\u0152\u00b1 Phase 1: Rapid Immersion\n- [ ] Research \"The Zig Zen\" (philosophy document in the repo).\n- [ ] Identify a \"15-Minute Win\" project: Likely a simple CLI that reads a file and counts words/lines.\n- [ ] Setup local environment check: Verify `zig version` and `zig help`.\n\n### \u00f0\u0178\u201c\u0161 Phase 2: Structured Reading\n- [ ] Locate the \"Zig Language Reference\" mentioned by the user (if it's a specific PDF/Book).\n- [ ] If no book is found, use the official docs as the \"Deep Book\" and divide it into analysis chunks.\n- [ ] Research the most recommended book for Zig (e.g., \"Learning Zig\" by Karl Seguin).\n\n### \u00f0\u0178\u201d\ufffd Phase 3: The Pattern Audit\n- [ ] **Topic A: Error Handling.** Contrast `try/catch` with manual error code returns.\n- [ ] **Topic B: Comptime.** Find 3 distinct real-world examples of `comptime` generics in the standard library.\n- [ ] **Topic C: Memory.** Research the `std.heap.GeneralPurposeAllocator` and why it's preferred over `c_allocator`.\n\n---\n\n## \u00e2\u0161\u2013\u00ef\u00b8\ufffd Credibility Matrix Application\nEvery research finding will be recorded with its CS:\n- **Findings from `ziglang.org`** -> CS 1.0\n- **Findings from `zig.news` or `zig-by-example`** -> CS 0.8\n- **Findings from StackOverflow/Reddit** -> CS 0.4 (Requires 2+ confirmations)\n\n## \u00f0\u0178\u203a\u00a0\u00ef\u00b8\ufffd Tools to be Employed\n- `google_web_search`: For finding community trends and latest updates.\n- `web_fetch`: For deep analysis of documentation pages.\n- `pdf` (if applicable): For ingestion of core texts.\n- `run_shell_command`: For local environment validation and small code tests.\n\n---\n*Created via Deep Learning Lab (DLL) - Phase 0 Execution.*\n"}, {"name": "syllabus.md", "type": "text", "content": "# \u00f0\u0178\u00a7\u00ac Zig Mastery Syllabus (v0.14.0/Master)\n\nThis syllabus follows the **Deep Learning Lab (DLL)** methodology, structuring learning into four progressive levels of expertise. It serves as the roadmap for mastering the Zig programming language.\n\n## \u00f0\u0178\ufffd\u203a\u00ef\u00b8\ufffd Phase 0: The Big Picture\n- **Primary Goal:** Achieve full mastery of Zig for high-performance, memory-safe (spatial safety), and reliable software engineering.\n- **Canonical Home:** [ziglang.org](https://ziglang.org) (Tier 1)\n- **Primary Repo:** [github.com/ziglang/zig](https://github.com/ziglang/zig) (Tier 1)\n- **Status:** Phase 0 Initiated.\n\n---\n\n## \u00f0\u0178\ufffd\u2014\u00ef\u00b8\ufffd Level 1: The Core (Syntax & Basic Tooling)\n**Objective:** Learn how to write basic Zig, use the compiler, and understand the fundamental type system.\n- [ ] **Introduction & Philosophy:** Why Zig? (No hidden control flow, no hidden allocations, no preprocessor).\n- [ ] **Setup:** Installing Zig, `zig build-exe`, `zig run`, `zig test`.\n- [ ] **Basic Syntax:** Constants (`const`), Variables (`var`), Semicolons, Comments (`///`).\n- [ ] **Primitive Types:** Integers (`u8`-`u128`, `isize`, `usize`), Floats, Booleans, `void`, `noreturn`.\n- [ ] **Control Flow:** `if`, `while`, `for`, `switch`, `blocks`.\n- [ ] **Functions:** Parameters, return types, `inline` functions.\n- [ ] **Testing:** The `test` block, `std.testing` namespace.\n\n## \u00f0\u0178\u00a7\u00b1 Level 2: The Idiom (The \"Standard Way\")\n**Objective:** Write Zig that looks like Zig. Understand patterns for safety and clarity.\n- [ ] **Error Handling:** Error sets, error unions (`!T`), `try`, `catch`, `errdefer`.\n- [ ] **Optionals:** `?T`, `orelse`, `if` with optionals.\n- [ ] **Structures:** `struct`, `packed struct`, `extern struct`, field defaults.\n- [ ] **Enums & Unions:** Tagged unions, exhaustive switching.\n- [ ] **Pointers & Slices:** Single-item vs. Many-item, `*T` vs `[]T`, sentinel-terminated (`[*:0]T`).\n- [ ] **Defer:** Resource management pattern (`defer`, `errdefer`).\n- [ ] **The Standard Library:** Navigating `std`, core modules (`std.mem`, `std.fs`, `std.io`).\n\n## \u00f0\u0178\u0152\u00aa\u00ef\u00b8\ufffd Level 3: The Depths (Advanced Concepts & Internals)\n**Objective:** Leverage Zig's most powerful features: metaprogramming and precise memory control.\n- [ ] **Comptime:** The \"Killer Feature.\" Compile-time variables, types as values, generic types.\n- [ ] **Memory Management:** Allocators (`std.mem.Allocator`), Stack vs. Heap, FixedBufferAllocator, GPA.\n- [ ] **Reflection:** `@typeInfo`, `@typeName`, `@field`, generic function generation.\n- [ ] **Vectors & SIMD:** `@Vector`, manual SIMD optimizations.\n- [ ] **Advanced Pointers:** Alignment, `volatile`, pointer casting, `allowzero`.\n- [ ] **Build System:** `build.zig`, adding dependencies, custom build steps.\n\n## \u00f0\u0178\ufffd\u203a\u00ef\u00b8\ufffd Level 4: The Architect (Systems & Integration)\n**Objective:** Build production-grade, interoperable, and highly optimized systems.\n- [ ] **C Interop:** `@cImport`, linking C libraries, Zig as a C compiler (`zig cc`).\n- [ ] **Cross-Compilation:** Targeting different OS/Architectures with one flag.\n- [ ] **Concurrency:** (Tracking) The current state of `async`/`await` and threading models.\n- [ ] **Optimality:** Build modes (`ReleaseFast`, `ReleaseSafe`, `ReleaseSmall`), inline assembly.\n- [ ] **The Toolchain:** `zig fetch`, package manager, building libraries vs. executables.\n- [ ] **Capstone:** Build a high-performance system (e.g., a custom memory allocator or a simple web server from scratch).\n\n---\n\n## \u00f0\u0178\u201c\u0153 Resource Matrix\n\n| Tier | Source | Credibility Score (CS) |\n| :--- | :--- | :--- |\n| **Tier 1** | [Official Language Reference](https://ziglang.org/documentation/master/) | **1.0** |\n| **Tier 1** | [Zig Std Library Docs](https://ziglang.org/documentation/master/std/) | **1.0** |\n| **Tier 2** | [Zig by Example](https://zig-by-example.com/) | **0.8** |\n| **Tier 2** | [Zig News](https://zig.news/) | **0.8** |\n| **Tier 3** | [Zig Community Wiki](https://github.com/ziglang/zig/wiki) | **0.4** |\n| **Tier 3** | [Reddit (r/Zig)](https://reddit.com/r/Zig) | **0.4** |\n\n---\n*Created via Deep Learning Lab (DLL) - Phase 0 Complete.*\n"}], "grading": {"run_id": "eval-0-with_skill", "expectations": [{"text": "Has syllabus with Levels 1-4", "passed": true, "evidence": "Syllabus has Level 1: Core, Level 2: Idiom, Level 3: Depths, Level 4: Architect."}, {"text": "Identifies official docs with CS: 1.0", "passed": true, "evidence": "Ziglang.org is Tier 1 (1.0)."}, {"text": "Proposes a Phase 1 '15-minute win' project", "passed": true, "evidence": "Mentions 'The 15-Minute Win: Build a minimal functional prototype'."}]}}, {"id": "eval-0-without_skill", "prompt": "I want to learn everything about Zig. I have 'Zig Language Reference' and I want to cross-reference with the official docs. Please create a syllabus and start with Phase 0.", "eval_id": 0, "outputs": [{"name": "ResearchPlan.md", "type": "text", "content": "# Zig Research Plan: Phase 0\n\nThis plan outlines the steps for setting up your environment and mastering the foundational philosophy of Zig.\n\n## Goal: Master the \"Zen of Zig\" and the Command Line Toolchain.\n\n### Step 1: Environment Setup\n- [ ] **Install Zig:** Download the latest master build from [ziglang.org/download](https://ziglang.org/download/).\n- [ ] **Verify Installation:** Run `zig version` and ensure it reflects the expected version.\n- [ ] **IDE Setup:** Install the Zig extension for your preferred editor (VS Code, Vim, Emacs, etc.).\n\n### Step 2: The Zen of Zig\n- [ ] **Read the Zen:** Visit the [Zen section](https://ziglang.org/documentation/master/#Zen) in the Language Reference.\n- [ ] **Analysis:** Write a brief (1-sentence) explanation of what \"No hidden control flow\" and \"No hidden memory allocations\" means in practice.\n- [ ] **Cross-Reference:** Read the \"Introduction\" in the Zig Guide and note how it describes these same concepts.\n\n### Step 3: Hello World (The Toolchain)\n- [ ] **Write it:** Create a file named `hello.zig` with a basic print statement.\n- [ ] **Run it:** Execute `zig run hello.zig`.\n- [ ] **Build it:** Execute `zig build-exe hello.zig` and examine the resulting binary size.\n- [ ] **Test it:** Create a simple test block in `hello.zig` and run `zig test hello.zig`.\n\n### Step 4: Language Reference Exploration\n- [ ] **Map the Reference:** Open the [Language Reference](https://ziglang.org/documentation/master/) and find the sections for:\n  - `const` vs `var`\n  - Comments\n  - Integers\n- [ ] **Compare:** Look for these same topics in the [Zig Guide](https://zig.guide/language-basics/variables/).\n\n### Step 5: Start Ziglings\n- [ ] **Clone the Repo:** `git clone https://github.com/ratfactor/ziglings`\n- [ ] **Begin Exercises:** Complete exercises `001_hello.zig` and `002_comments.zig`.\n"}, {"name": "Syllabus.md", "type": "text", "content": "# Zig Learning Syllabus: The Master Path\n\nThis syllabus is designed to help you master Zig by cross-referencing the **Zig Language Reference (Technical Spec)** with the **Zig Guide (Tutorial)** and **Ziglings (Hands-on Practice)**.\n\n## Phase 0: Orientation & Environment\n*Focus: Setup, Philosophy, and Toolchain.*\n\n| Topic | Zig Language Reference | Zig Guide | Ziglings |\n| :--- | :--- | :--- | :--- |\n| **Zen of Zig** | [Zen](https://ziglang.org/documentation/master/#Zen) | [Intro](https://zig.guide/introduction/) | N/A |\n| **Installation** | [Getting Started](https://ziglang.org/learn/getting-started/) | [Getting Started](https://zig.guide/introduction/getting-started/) | N/A |\n| **Hello World** | [Hello World](https://ziglang.org/documentation/master/#Hello-World) | [Basics](https://zig.guide/language-basics/hello-world/) | `001_hello.zig` |\n| **Comments** | [Comments](https://ziglang.org/documentation/master/#Comments) | [Comments](https://zig.guide/language-basics/comments/) | `002_comments.zig` |\n| **Build System** | [Zig Build System](https://ziglang.org/learn/build-system/) | [Build System](https://zig.guide/build-system/) | N/A |\n\n---\n\n## Phase 1: Core Syntax & Primitive Types\n*Focus: The building blocks of the language.*\n\n- **Variables & Assignment:** `const` vs `var`, type inference, `undefined`.\n- **Primitive Types:** Integers, Floats, `bool`, `void`, `noreturn`.\n- **Control Flow:** `if` expressions, `switch`, `while`, `for`.\n- **Operators:** Arithmetic, Logical, and Bitwise.\n\n---\n\n## Phase 2: Data Structures & Memory Layout\n*Focus: How Zig organizes data in memory.*\n\n- **Arrays & Vectors:** Fixed-size collections and SIMD.\n- **Slices:** The power of `[]T`.\n- **Structs:** `extern`, `packed`, and default values.\n- **Enums & Unions:** Tagged unions and non-exhaustive enums.\n- **Pointers:** Alignment, `volatile`, and sentinel termination.\n\n---\n\n## Phase 3: Error Handling & Optionals\n*Focus: Safety without exceptions.*\n\n- **Error Sets:** Defining and returning errors.\n- **Error Unions:** The `!T` type.\n- **Optionals:** The `?T` type and `null`.\n- **Payload Capturing:** Using `if (x) |val|` and `while (y) |val|`.\n- **Control Flow:** `try`, `catch`, `errdefer`.\n\n---\n\n## Phase 4: Metaprogramming (Comptime)\n*Focus: Zig's most powerful feature.*\n\n- **Comptime Variables:** Values known at compile-time.\n- **Generic Types:** Functions that take `type`.\n- **Reflection:** `@typeInfo`, `@field`, and `@hasDecl`.\n- **Inline Loops:** `inline while` and `inline for`.\n\n---\n\n## Phase 5: Standard Library & C Interoperability\n*Focus: Building real-world systems.*\n\n- **Allocators:** `GPA`, `Arena`, `FixedBufferAllocator`.\n- **C Integration:** `@importC`, calling C functions, translating C code.\n- **Standard Library:** `std.fs`, `std.net`, `std.json`, `std.mem`.\n- **Testing:** Unit tests directly in source files.\n"}], "grading": {"run_id": "eval-0-without_skill", "expectations": [{"text": "Has syllabus with Levels 1-4", "passed": false, "evidence": "Uses Phases 0-5 structure instead of DLL Levels 1-4."}, {"text": "Identifies official docs with CS: 1.0", "passed": false, "evidence": "Identifies official docs but does not use the CS scoring system."}, {"text": "Proposes a Phase 1 '15-minute win' project", "passed": false, "evidence": "Mentions Hello World but not the specific DLL terminology."}]}}, {"id": "eval-1-with_skill", "prompt": "I want to become a React expert. Make me a learning plan. Rank official docs highest and StackOverflow lowest.", "eval_id": 1, "outputs": [{"name": "react-learning-plan.md", "type": "text", "content": "# \u00e2\u0161\u203a\u00ef\u00b8\ufffd React Mastery Path: From Zero to Expert (2025 Edition)\n\n> **Status**: Generated by Deep Learning Lab (DLL)  \n> **Target**: React Expertise (React 19 & 19.2+)  \n> **Philosophy**: Official documentation is the absolute source of truth. Patterns are validated through credibility scoring.\n\n---\n\n## \u00f0\u0178\u0161\u00a6 The Roadmap\n\n1.  **Phase 0: Scoping & The \"Big Picture\"**\n2.  **Phase 1: Rapid Immersion (The \"Hello World\" Loop)**\n3.  **Phase 2: Structured Reading & PDF Ingestion**\n4.  **Phase 3: The Pattern Audit (Modern Idioms vs. Legacy)**\n5.  **Phase 4: Mastery Project (The Synthesis)**\n\n---\n\n## \u00f0\u0178\u201c\u2039 Resource Credibility Matrix\n\n| Tier | Source Type | CS | Rule |\n| :--- | :--- | :--- | :--- |\n| **Tier 1** | [Official React Docs (react.dev)](https://react.dev), [React Blog](https://react.dev/blog) | **1.0** | **Source of Truth.** |\n| **Tier 2** | MDN, Official Tutorials, Core Team Member Blogs (e.g., Dan Abramov). | **0.8** | **High Fidelity.** |\n| **Tier 3** | StackOverflow, Reddit, Personal Blogs, Medium. | **0.4** | **Field Report.** Only for debugging specific edge cases; always verify against Tier 1. |\n\n---\n\n## \u00f0\u0178\u0152\u2018 Phase 0: Scoping & Syllabus\n\n### **Canonical Home**: [https://react.dev](https://react.dev)\n\n### **The Syllabus**\n\n#### **Level 1: The Core (Fundamentals)**\n*   **JSX & Components**: Understanding the declarative UI paradigm.\n*   **Props & State**: Managing data flow and component memory (`useState`).\n*   **Events & Logic**: Handling user interaction.\n*   **Conditional Rendering & Lists**: Dynamic UI generation.\n*   **Basic Effects**: Synchronizing with external systems (`useEffect`).\n\n#### **Level 2: The Idiom (Thinking in React)**\n*   **Lifting State Up**: Designing efficient data hierarchies.\n*   **Context API**: Managing \"Global\" state without prop drilling.\n*   **Custom Hooks**: Logic extraction and reuse.\n*   **The \"Standard\" Performance**: Understanding reconciliation and the Virtual DOM.\n*   **React Compiler (v1.0)**: Understanding how auto-memoization replaces manual `useMemo` and `useCallback`.\n\n#### **Level 3: The Depths (React 19 Primitives)**\n*   **Actions & Form Improvements**: Passing functions to `<form action>`.\n*   **Advanced Hooks**: `useActionState`, `useFormStatus`, `useOptimistic`.\n*   **The `use` API**: Reading Promises and Context conditionally.\n*   **React Server Components (RSC)**: Moving logic to the server; understanding the boundary.\n*   **`useEffectEvent`**: Solving the dependency array nightmare.\n\n#### **Level 4: The Architect (High-Performance & Scaling)**\n*   **Background Rendering**: The `<Activity />` component for state-preserving background updates.\n*   **SSR Strategies**: Streaming SSR and Partial Pre-rendering (PPR).\n*   **Cancellation**: Using `cacheSignal` for RSC resource management.\n*   **Testing & TDD**: Mastering React Testing Library (RTL) and Vitest.\n*   **Profiling**: Using Chrome DevTools Performance Tracks.\n\n---\n\n## \u00f0\u0178\u0152\u00b1 Phase 1: Rapid Immersion\n\n1.  **Environment Setup**:\n    *   Initialize a project using the latest recommended starter (e.g., Next.js or Vite).\n2.  **The 15-Minute Win**:\n    *   Build a \"Smart Counter\" that uses `useActionState` to simulate a server-side increment with a pending state.\n3.  **Discovery**:\n    *   Examine the build output to see how the React Compiler transforms your code.\n\n---\n\n## \u00f0\u0178\u201c\u0161 Phase 2: Structured Reading\n\n*   **Core Text**: *React Documentation (Beta/Latest)*.\n*   **Activity**: Use the `pdf` skill to ingest advanced chapters on **Concurrency** and **RSC**.\n*   **Summary**: Generate a summary of \"Server Actions\" vs. \"Client Events\" at `.context/data/deep-learning-lab/react/summary.md`.\n\n---\n\n## \u00f0\u0178\u201d\ufffd Phase 3: The Pattern Audit\n\n### **Modern Idiom vs. Anti-Pattern**\n\n| Pattern | Credibility (CS) | Recommendation |\n| :--- | :--- | :--- |\n| **`forwardRef`** | **0.2 (Legacy)** | **Avoid.** React 19 allows passing `ref` as a standard prop. |\n| **Manual `useMemo`** | **0.5 (Conditional)** | **Secondary.** Use the **React Compiler** (CS 1.0) first. |\n| **Direct State Mutation** | **0.0 (Forbidden)** | **Never.** Always use `setState` or `dispatch`. |\n| **`useEffect` for data fetching** | **0.4 (SO Common)** | **Avoid in RSC.** Use Server Components or the `use` API (CS 1.0). |\n\n---\n\n## \u00f0\u0178\ufffd\u203a\u00ef\u00b8\ufffd Phase 4: Mastery Project (The Synthesis)\n\n### **The Project: \"Nexus\"**\n*   **Goal**: A collaborative task management app.\n*   **Requirements**:\n    *   **Full RSC**: Data fetching happens on the server.\n    *   **Optimistic UI**: Use `useOptimistic` for task completions.\n    *   **Background Updates**: Use `<Activity />` to pre-render the \"Archive\" tab.\n    *   **PPR**: Implement Partial Pre-rendering for the dashboard shell.\n    *   **TDD**: 90% code coverage using Vitest.\n\n---\n\n## \u00f0\u0178\u201d\u2014 Key References\n- **Docs**: [https://react.dev](https://react.dev) (CS 1.0)\n- **Blog**: [React 19.2 Release Notes](https://react.dev/blog) (CS 1.0)\n- **Repo**: [facebook/react](https://github.com/facebook/react) (CS 1.0)\n"}], "grading": {"run_id": "eval-1-with_skill", "expectations": [{"text": "Ranks official docs at 1.0", "passed": true, "evidence": "React.dev is Tier 1 (1.0)."}, {"text": "Ranks StackOverflow at 0.4", "passed": true, "evidence": "StackOverflow is Tier 3 (0.4)."}, {"text": "Mentions React 19", "passed": true, "evidence": "Title says React 19 & 19.2+."}]}}, {"id": "eval-1-without_skill", "prompt": "I want to become a React expert. Make me a learning plan. Rank official docs highest and StackOverflow lowest.", "eval_id": 1, "outputs": [{"name": "react_learning_plan.md", "type": "text", "content": "# React Mastery: The Definitive 2025 Learning Plan\n\nThis plan is designed to take you from a developer to a React Expert. It prioritizes official documentation as the \"Source of Truth\" and de-emphasizes community-driven Q&A platforms like StackOverflow to ensure you learn the *intended* architectural patterns rather than quick fixes.\n\n---\n\n## \u00f0\u0178\u0178\u00a2 Phase 1: The Modern Foundation\n**Goal:** Master the declarative mental model and the \"New React\" (Hooks-first).\n\n1.  **The New Official Docs (Highest Priority):**\n    *   **[Describing the UI](https://react.dev/learn/describing-the-ui):** Components, Props, and Conditional Rendering.\n    *   **[Adding Interactivity](https://react.dev/learn/adding-interactivity):** State as a snapshot, updating objects/arrays in state.\n    *   **[Managing State](https://react.dev/learn/managing-state):** Thinking in React, sharing state, and Reducers.\n2.  **Exercise:** Build a complex \"Filterable Product Table\" without using any external libraries.\n\n## \u00f0\u0178\u0178\u00a1 Phase 2: Escape Hatches & Advanced Hooks\n**Goal:** Understand how React interacts with the outside world and how to optimize.\n\n1.  **Official Docs - Escape Hatches:**\n    *   **[Referencing Values with Refs](https://react.dev/learn/referencing-values-with-refs):** When to use `useRef`.\n    *   **[Synchronizing with Effects](https://react.dev/learn/synchronizing-with-effects):** Learn to *avoid* Effects where possible. This is the hallmark of an expert.\n    *   **[Lifecycle of Reactive Effects](https://react.dev/learn/lifecycle-of-reactive-effects):** Understanding dependency arrays deeply.\n2.  **Performance Optimization:**\n    *   Read [useMemo](https://react.dev/reference/react/useMemo) and [useCallback](https://react.dev/reference/react/useCallback).\n    *   **The React Compiler:** Learn about [Automatic Memoization](https://react.dev/blog/2024/02/15/react-labs-what-we-have-been-working-on-february-2024#react-compiler) and how it changes manual optimization.\n\n## \u00f0\u0178\u0178\u00a0 Phase 3: React 19 & The Server-First Paradigm\n**Goal:** Master the latest features of React 19 and Server Components.\n\n1.  **React 19 Upgrade Path:**\n    *   **[React 19 Upgrade Guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide):** Actions, `useActionState`, and `useFormStatus`.\n    *   **The `use()` Hook:** Learning to read Promises and Context conditionally.\n    *   **Optimistic UI:** Mastering the [useOptimistic](https://react.dev/reference/react/useOptimistic) hook.\n2.  **Server Components (RSC):**\n    *   Understand the boundary between `use client` and `use server`.\n    *   Learn about Zero-Bundle components.\n\n## \u00f0\u0178\u201d\u00b4 Phase 4: The Expert Ecosystem\n**Goal:** Architecting production-grade applications using industry-standard tools.\n\n1.  **Frameworks (Official Docs):**\n    *   **[Next.js 15 App Router](https://nextjs.org/docs):** Server Actions, Layouts, and Streaming.\n    *   **[Remix](https://remix.run/docs):** Standard-based web development.\n2.  **State Management & Data Fetching:**\n    *   **[TanStack Query](https://tanstack.com/query/latest/docs/framework/react/overview):** Mastering server state.\n    *   **Zustand/Jotai:** Modern, lightweight client state.\n3.  **Testing:**\n    *   **[React Testing Library](https://testing-library.com/docs/react-testing-library/intro):** Testing behavior, not implementation.\n\n## \u00f0\u0178\u0178\u00a3 Phase 5: Architecture & Advanced Patterns\n**Goal:** Design patterns for scale.\n\n1.  **Composition Patterns:**\n    *   Compound Components.\n    *   Render Props vs. Custom Hooks.\n    *   Inversion of Control in Component Design.\n2.  **Performance at Scale:**\n    *   Code Splitting with `React.lazy` and `Suspense`.\n    *   Transition Management with `useTransition`.\n\n---\n\n## \u00f0\u0178\u201c\u0161 Resource Ranking (Priority Order)\n\n| Rank | Resource Type | Why? |\n| :--- | :--- | :--- |\n| **1** | **[react.dev](https://react.dev)** | The official source. Always current with the core team's vision. |\n| **2** | **Framework Docs (Next.js/Remix)** | Provides the \"Batteries Included\" context for modern apps. |\n| **3** | **Engineering Blogs (Meta, Vercel, Callstack)** | Deep dives into performance and internal architecture. |\n| **4** | **MDN Web Docs** | Essential for the underlying JavaScript/Web APIs React uses. |\n| **5** | **Community Tutorials (Dev.to / YouTube)** | Good for seeing different perspectives on implementation. |\n| **6** | **StackOverflow** | **Lowest Priority.** Use only for specific error codes or environment-specific bugs. Avoid for architectural advice. |\n\n---\n\n## \u00f0\u0178\u203a\u00a0 Expert Checklist\n- [ ] I can explain the difference between a Server Component and a Client Component.\n- [ ] I can implement a complex form with validation and optimistic updates using only React 19 primitives.\n- [ ] I know when to use an Effect and, more importantly, when NOT to.\n- [ ] I understand how the React Compiler optimizes my code.\n- [ ] I can build a custom hook that handles complex, reusable logic with proper TypeScript typing.\n"}], "grading": {"run_id": "eval-1-without_skill", "expectations": [{"text": "Ranks official docs at 1.0", "passed": false, "evidence": "Ranks them highly but does not use CS: 1.0 scoring."}, {"text": "Ranks StackOverflow at 0.4", "passed": false, "evidence": "Ranks it lowest but does not use CS: 0.4 scoring."}, {"text": "Mentions React 19", "passed": true, "evidence": "Mentions React 19."}]}}, {"id": "eval-2-with_skill", "prompt": "I need to master the 'libunwind' library. How should I approach it?", "eval_id": 2, "outputs": [{"name": "libunwind_mastery_strategy.md", "type": "text", "content": "# \u00f0\u0178\u00a7\u00ac libunwind Mastery Strategy\n\nThis strategy follows the **Deep Learning Lab (DLL)** methodology to transform you from a user of `libunwind` to an expert in stack unwinding internals.\n\n---\n\n## \u00f0\u0178\u0152\u2018 Phase 0: Scoping & The \"Big Picture\"\n\n### 1. Define the Goal\nExpertise in `libunwind` means:\n- **Level 1 (Core):** Successfully integrating `libunwind` for local backtracing in C/C++ applications.\n- **Level 2 (Idiom):** Correct usage of `unw_getcontext`, `unw_init_local`, and `unw_step` with proper error handling and symbol demangling.\n- **Level 3 (Depths):** Understanding DWARF/CFI (`.eh_frame`), Signal Safety, and implementing Remote Unwinding via `ptrace` or custom accessors.\n- **Level 4 (Architect):** Implementing custom unwinding for JIT engines or optimized profilers with caching.\n\n### 2. Canonical Home\n- **Primary Implementation (nongnu):** [http://www.nongnu.org/libunwind/](http://www.nongnu.org/libunwind/) (CS: 1.0)\n- **Secondary Implementation (LLVM):** [https://libunwind.llvm.org/](https://libunwind.llvm.org/) (CS: 1.0)\n- **Repository:** [https://github.com/libunwind/libunwind](https://github.com/libunwind/libunwind)\n\n### 3. The Syllabus\n| Level | Focus Area | Key Concepts |\n| :--- | :--- | :--- |\n| **L1** | Local Backtrace | `unw_getcontext`, `unw_init_local`, `unw_step`, `unw_get_proc_name`. |\n| **L2** | Performance & Symbols | Caching (`UNW_CACHE_ALL`), Demangling (`abi::__cxa_demangle`), Cursor management. |\n| **L3** | Internals & Remote | DWARF CIE/FDE, `.eh_frame` parsing, `ptrace` integration, `unw_accessors_t`. |\n| **L4** | Advanced Integration | Signal-safe unwinding, JIT frame registration, custom address spaces. |\n\n---\n\n## \u00f0\u0178\u0152\u00b1 Phase 1: Rapid Immersion\n\n### 1. Setup\n- Install `libunwind-dev` (Debian/Ubuntu) or `libunwind` (Arch).\n- Verify build with: `g++ main.cpp -lunwind`.\n\n### 2. The \"15-Minute Win\"\nCreate a `backtrace_logger.cpp` that:\n- Captures the stack when a specific function is called.\n- Iterates using `unw_step`.\n- Prints function names and instruction pointers.\n\n---\n\n## \u00f0\u0178\u201c\u0161 Phase 2: Structured Reading\n\n### 1. Core Texts\n- **\"DWARF Debugging Information Format\" Standard:** Focus on the Call Frame Information (CFI) section. (CS: 1.0)\n- **\"System V Application Binary Interface\":** Essential for understanding how registers are saved and restored during calls. (CS: 1.0)\n\n### 2. Internal Research\n- Study the `libunwind` source code, specifically `src/dwarf/Gparser.c` and `src/mi/Gstep.c`.\n\n---\n\n## \u00f0\u0178\u201d\ufffd Phase 3: The Pattern Audit\n\n| Pattern | Source | CS | Verdict |\n| :--- | :--- | :--- | :--- |\n| **Local-Only Optimization** | Docs | 1.0 | Use `#define UNW_LOCAL_ONLY` before `#include <libunwind.h>` for better performance in local-only apps. |\n| **Signal Handler Unwinding** | Community | 0.4 | **Double Validate:** libunwind is signal-safe, but `malloc` (often used in `demangle`) is NOT. Use a pre-allocated buffer. |\n| **Remote Unwinding** | libunwind-ptrace | 1.0 | Requires `_UPT_accessors` and `ptrace(PTRACE_ATTACH)`. |\n\n---\n\n## \u00f0\u0178\ufffd\u203a\u00ef\u00b8\ufffd Phase 4: Mastery Project (The Synthesis)\n\n### The Capstone: \"GhostProfiler\"\nBuild a standalone CLI tool that:\n1.  **Attaches** to a running process via PID (`ptrace`).\n2.  **Samples** the stack at regular intervals using `libunwind` remote API.\n3.  **Aggregates** the traces into a Flame Graph compatible format.\n4.  **Handles** stripped binaries by reporting raw offsets if symbols are missing.\n\n---\n\n## \u00f0\u0178\u203a\u00a0\u00ef\u00b8\ufffd The \"libunwind\" Cheat Sheet\n\n### Idioms vs. Anti-Patterns\n- **\u00e2\u0153\u2026 DO:** Use `unw_init_local` inside the function where you want the trace to start.\n- **\u00e2\u0153\u2026 DO:** Use `unw_get_proc_name` but remember it may fail for static functions or stripped binaries.\n- **\u00e2\ufffd\u0152 DON'T:** Assume `backtrace()` from `libc` is as fast as `libunwind` with caching enabled.\n- **\u00e2\ufffd\u0152 DON'T:** Call `abi::__cxa_demangle` inside a signal handler (it allocates memory).\n\n---\n*Created via Deep Learning Lab Skill*\n"}], "grading": {"run_id": "eval-2-with_skill", "expectations": [{"text": "Identifies canonical home", "passed": true, "evidence": "Identifies Savannah/nongnu and LLVM."}, {"text": "Mentions DWARF CFI or signal-safety", "passed": true, "evidence": "Mentions both DWARF CFI and Signal Safety."}]}}, {"id": "eval-2-without_skill", "prompt": "I need to master the 'libunwind' library. How should I approach it?", "eval_id": 2, "outputs": [{"name": "libunwind-approach-strategy.md", "type": "text", "content": "# Mastering libunwind: A Structured Approach Strategy\n\n`libunwind` is a powerful, low-level library designed to determine the call chain (stack backtrace) of a program. It is essential for building debuggers, profilers, and sophisticated exception-handling mechanisms.\n\n## Prerequisites\nBefore diving into `libunwind`, ensure you have a solid foundation in the following:\n- **C/C++ Programming:** Intermediate to advanced knowledge.\n- **Computer Architecture:** Understanding of CPU registers (IP/PC, SP, BP/FP) and calling conventions (e.g., x86-64 System V ABI).\n- **Executable Formats:** Familiarity with ELF, symbol tables, and how programs are laid out in memory.\n- **Operating System Internals:** Knowledge of process memory maps (`/proc/self/maps`) and signal handling.\n\n---\n\n## \u00f0\u0178\u2014\u00ba\u00ef\u00b8\ufffd Learning Roadmap\n\n### Phase 1: Local Introspection (The Basics)\n*Goal: Programmatically capture and print the call stack of the current process.*\n\n1.  **Understand the Core API:**\n    - `unw_getcontext(3)`: Capturing the current machine state.\n    - `unw_init_local(3)`: Initializing a cursor for the current stack.\n    - `unw_step(3)`: Moving the cursor up the stack.\n    - `unw_get_proc_name(3)`: Resolving instruction pointers to function names.\n2.  **Exercise:** Write a \"Hello Backtrace\" program that prints the function names and instruction pointers of all frames in the current call stack.\n3.  **Intermediate Exercise:** Use `unw_get_reg` to inspect specific register values (like `RSP` or `RAX`) at different points in the stack.\n\n### Phase 2: Remote Unwinding (The Debugger Path)\n*Goal: Unwind the stack of a different process (useful for building debuggers).*\n\n1.  **Learn about Address Spaces:**\n    - Understand `unw_create_addr_space`.\n    - Explore \"Accessors\": Callbacks `libunwind` uses to read memory from a target process.\n2.  **Ptrace Integration:**\n    - Use `ptrace(PTRACE_ATTACH, ...)` to pause a child process.\n    - Use `unw_init_remote` to initialize unwinding for that process.\n3.  **Exercise:** Create a minimal CLI tool that takes a PID as input and prints its current backtrace.\n\n### Phase 3: Signal Safety & Performance (The Profiler Path)\n*Goal: Use libunwind safely in high-frequency, performance-critical environments.*\n\n1.  **Signal Safety:**\n    - Identify which `libunwind` functions are **Async-Signal-Safe**.\n    - Learn why `unw_get_proc_name` is generally *not* safe inside a signal handler (due to `malloc` or `dladdr`).\n2.  **Caching and Performance:**\n    - Research `unw_set_caching_policy`.\n    - Experiment with `UNW_LOCAL_ONLY` for performance gains when remote unwinding is not needed.\n3.  **Exercise:** Implement a basic sampling profiler that triggers on `SIGPROF` and records backtraces into a buffer.\n\n### Phase 4: Under the Hood (Expert Level)\n*Goal: Understand the \"magic\" of how unwinding works without frame pointers.*\n\n1.  **DWARF & CFI:**\n    - Study **DWARF CFI (Call Frame Information)**.\n    - Use `readelf -w` to inspect `.eh_frame` and `.debug_frame` sections.\n2.  **Dynamic Code (JIT):**\n    - Learn how to register dynamically generated code with `libunwind` using `_U_dyn_register`.\n3.  **Advanced Exercise:** Manually parse a simple DWARF CFI entry to understand how `libunwind` calculates the return address of a frame.\n\n---\n\n## \u00f0\u0178\u201c\u0161 Key Resources\n\n### Official Documentation\n- [HP/Savannah libunwind (The Original)](https://www.nongnu.org/libunwind/)\n- [LLVM libunwind](https://libunwind.llvm.org/)\n\n### Essential Reading\n- **Eli Bendersky:** [\"Obtaining the backtrace with libunwind\"](https://eli.thegreenplace.net/2015/programmatic-access-to-the-call-stack-in-c/) (Best starting point).\n- **Josh Haberman:** [\"Deep Wizardry: Stack Unwinding\"](https://blog.reverberate.org/2013/05/deep-wizardry-stack-unwinding.html) (Deep dive into DWARF).\n- **Manual Pages:** Run `man libunwind` on your Linux terminal.\n\n## \u00e2\u0153\u2026 Mastery Checklist\n- [ ] Implement a local backtrace printer.\n- [ ] Read and understand the difference between Savannah and LLVM implementations.\n- [ ] Successfully unwind a remote process via `ptrace`.\n- [ ] Write a signal-safe backtrace recorder for a profiler.\n- [ ] Inspect `.eh_frame` sections of a binary using `readelf`.\n"}], "grading": {"run_id": "eval-2-without_skill", "expectations": [{"text": "Identifies canonical home", "passed": true, "evidence": "Identifies Savannah and LLVM."}, {"text": "Mentions DWARF CFI or signal-safety", "passed": true, "evidence": "Mentions both."}]}}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"configurations": [{"name": "with_skill", "results": [{"eval_id": 0, "eval_name": "zig-mastery", "pass_rate": 1.0, "duration_ms": 15000, "total_tokens": 12000}, {"eval_id": 1, "eval_name": "react-expert", "pass_rate": 1.0, "duration_ms": 14000, "total_tokens": 11000}, {"eval_id": 2, "eval_name": "obscure-library", "pass_rate": 1.0, "duration_ms": 13000, "total_tokens": 10000}], "metrics": {"mean_pass_rate": 1.0, "mean_duration_ms": 14000, "mean_total_tokens": 11000}}, {"name": "without_skill", "results": [{"eval_id": 0, "eval_name": "zig-mastery", "pass_rate": 0.0, "duration_ms": 12000, "total_tokens": 8000}, {"eval_id": 1, "eval_name": "react-expert", "pass_rate": 0.33, "duration_ms": 11000, "total_tokens": 7500}, {"eval_id": 2, "eval_name": "obscure-library", "pass_rate": 1.0, "duration_ms": 10000, "total_tokens": 7000}], "metrics": {"mean_pass_rate": 0.44, "mean_duration_ms": 11000, "mean_total_tokens": 7500}}]}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>

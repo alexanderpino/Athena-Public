@@ -1,0 +1,22 @@
+[
+  {"query": "I want to learn everything about Zig. I have 'Zig Language Reference' and I want to cross-reference with the official docs. Please create a syllabus and start with Phase 0.", "should_trigger": true},
+  {"query": "I want to become a React expert. Make me a learning plan. Rank official docs highest and StackOverflow lowest.", "should_trigger": true},
+  {"query": "I need to master the 'libunwind' library. How should I approach it?", "should_trigger": true},
+  {"query": "Hey, could you help me build a learning roadmap for Rust? I'm a complete beginner but I want to eventually do systems programming.", "should_trigger": true},
+  {"query": "I'm a senior dev and I need to onboard onto a new Go codebase quickly. What's the best way to get up to speed with the idioms?", "should_trigger": true},
+  {"query": "Can you teach me how to use the Kubernetes API? I want to go from Zero to Hero.", "should_trigger": true},
+  {"query": "I want to learn how to write a simple hello world in Python.", "should_trigger": false},
+  {"query": "What is the best way to learn a new programming language?", "should_trigger": true},
+  {"query": "I want to master the art of prompt engineering. Can you make a syllabus for me?", "should_trigger": true},
+  {"query": "Tell me about the history of the Linux kernel.", "should_trigger": false},
+  {"query": "How do I install Node.js on Windows?", "should_trigger": false},
+  {"query": "I'm starting a deep dive into the 'PostgreSQL' internals. I need a structured study plan that includes reading the source code and official docs.", "should_trigger": true},
+  {"query": "Can you explain the difference between a process and a thread?", "should_trigger": false},
+  {"query": "I want to become an expert in 'GraphQL'. Please set up a learning lab for me.", "should_trigger": true},
+  {"query": "What are the core concepts of 'Docker'?", "should_trigger": false},
+  {"query": "I need to learn 'Tailwind CSS' for a new project. Give me a 4-phase mastery plan.", "should_trigger": true},
+  {"query": "How can I improve my JavaScript skills?", "should_trigger": true},
+  {"query": "Write a script that extracts text from a PDF.", "should_trigger": false},
+  {"query": "I want to learn how to build a game engine using C++. I need a syllabus that covers everything from math to rendering.", "should_trigger": true},
+  {"query": "What are some good books for learning 'DirectX 12'?", "should_trigger": true}
+]

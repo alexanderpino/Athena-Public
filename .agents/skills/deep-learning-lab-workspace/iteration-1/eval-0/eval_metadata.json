@@ -1,0 +1,10 @@
+{
+  "eval_id": 0,
+  "eval_name": "zig-mastery",
+  "prompt": "I want to learn everything about Zig. I have 'Zig Language Reference' and I want to cross-reference with the official docs. Please create a syllabus and start with Phase 0.",
+  "assertions": [
+    {"name": "has_syllabus_4_levels", "description": "Check if syllabus has Levels 1-4."},
+    {"name": "identifies_official_docs_1_0", "description": "Check if official docs are identified with CS: 1.0."},
+    {"name": "proposes_15_min_win", "description": "Check if a Phase 1 '15-minute win' project is proposed."}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "run_id": "eval-0-with_skill",
+  "expectations": [
+    {"text": "Has syllabus with Levels 1-4", "passed": true, "evidence": "Syllabus has Level 1: Core, Level 2: Idiom, Level 3: Depths, Level 4: Architect."},
+    {"text": "Identifies official docs with CS: 1.0", "passed": true, "evidence": "Ziglang.org is Tier 1 (1.0)."},
+    {"text": "Proposes a Phase 1 '15-minute win' project", "passed": true, "evidence": "Mentions 'The 15-Minute Win: Build a minimal functional prototype'."}
+  ]
+}

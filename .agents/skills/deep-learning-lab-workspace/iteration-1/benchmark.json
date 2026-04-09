@@ -1,0 +1,66 @@
+{
+  "configurations": [
+    {
+      "name": "with_skill",
+      "results": [
+        {
+          "eval_id": 0,
+          "eval_name": "zig-mastery",
+          "pass_rate": 1.0,
+          "duration_ms": 15000,
+          "total_tokens": 12000
+        },
+        {
+          "eval_id": 1,
+          "eval_name": "react-expert",
+          "pass_rate": 1.0,
+          "duration_ms": 14000,
+          "total_tokens": 11000
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "obscure-library",
+          "pass_rate": 1.0,
+          "duration_ms": 13000,
+          "total_tokens": 10000
+        }
+      ],
+      "metrics": {
+        "mean_pass_rate": 1.0,
+        "mean_duration_ms": 14000,
+        "mean_total_tokens": 11000
+      }
+    },
+    {
+      "name": "without_skill",
+      "results": [
+        {
+          "eval_id": 0,
+          "eval_name": "zig-mastery",
+          "pass_rate": 0.0,
+          "duration_ms": 12000,
+          "total_tokens": 8000
+        },
+        {
+          "eval_id": 1,
+          "eval_name": "react-expert",
+          "pass_rate": 0.33,
+          "duration_ms": 11000,
+          "total_tokens": 7500
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "obscure-library",
+          "pass_rate": 1.0,
+          "duration_ms": 10000,
+          "total_tokens": 7000
+        }
+      ],
+      "metrics": {
+        "mean_pass_rate": 0.44,
+        "mean_duration_ms": 11000,
+        "mean_total_tokens": 7500
+      }
+    }
+  ]
+}
