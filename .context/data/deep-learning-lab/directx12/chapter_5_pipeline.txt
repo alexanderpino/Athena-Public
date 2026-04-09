@@ -1,0 +1,1713 @@
+--- Page 159 ---
+DIRECT 3D INITIALIZATION  125
+Below is an example of calling these two methods where we create an RTV to each 
+buffer in the swap chain:
+ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBufferCount];
+CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(
+  mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+for (UINT i = 0; i < SwapChainBufferCount; i++)
+{
+  // Get the ith buffer in the swap chain.
+  ThrowIfFailed(mSwapChain->GetBuffer(
+    i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+  // Create an RTV to it.
+  md3dDevice->CreateRenderTargetView(
+    mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
+  // Next entry in heap.
+  rtvHeapHandle.Offset(1, mRtvDescriptorSize);
+}
+4.3.8 Create the Depth/Stencil Buffer and View
+We now need to create the depth/stencil buffer. As described in §4.1.5, the 
+depth buffer is just a 2D texture that stores the depth information of the nearest 
+visible objects (and stencil information if using stenciling). A texture is a kind 
+of GPU resource, so we create one by filling out a 
+D3D12_RESOURCE_DESC  structure 
+describing the texture resource, and then calling the ID3D12Device::CreateCommi
+ttedResource  method. The D3D12_RESOURCE_DESC  structure is defined as follows:
+typedef struct D3D12_RESOURCE_DESC
+  {
+  D3D12_RESOURCE_DIMENSION Dimension;
+  UINT64 Alignment;
+  UINT64 Width;
+  UINT Height;
+  UINT16 DepthOrArraySize;
+  UINT16 MipLevels;
+  DXGI_FORMAT Format;
+  DXGI_SAMPLE_DESC SampleDesc;
+  D3D12_TEXTURE_LAYOUT Layout;
+  D3D12_RESOURCE_MISC_FLAG MiscFlags;
+} D3D12_RESOURCE_DESC;
+1. Dimension: The dimension of the resource, which is one of the following 
+enumerated types:
+  enum D3D12_RESOURCE_DIMENSION
+  {
+    D3D12_RESOURCE_DIMENSION_UNKNOWN = 0,
+    D3D12_RESOURCE_DIMENSION_BUFFER = 1,
+    D3D12_RESOURCE_DIMENSION_TEXTURE1D = 2,
+--- Page 160 ---
+126 DIRECT 3D FOUNDATIONS
+    D3D12_RESOURCE_DIMENSION_TEXTURE2D = 3,
+    D3D12_RESOURCE_DIMENSION_TEXTURE3D = 4
+  } D3D12_RESOURCE_DIMENSION;
+2. Width: The width of the texture in texels. For buffer resources, this is the 
+number of bytes in the buffer. 
+3. Height: The height of the texture in texels.
+4. DepthOrArraySize: The depth of the texture in texels, or the texture array size 
+(for 1D and 2D textures). Note that you cannot have a texture array of 3D 
+textures.
+5. 
+MipLevels: The number of mipmap levels. Mipmaps are covered in Chapter 9 
+on texturing. For creating the depth/stencil buffer, our texture only needs one 
+mipmap level.
+6. 
+Format: A member of the DXGI_FORMAT enumerated type specifying the format 
+of the texels. For a depth/stencil buffer, this needs to be one of the formats 
+shown in §4.1.5.
+7. 
+SampleDesc: The number of multisamples and quality level; see §4.1.7 and 
+§4.1.8. Recall that 4X MSAA uses a back buffer and depth buffer 4X bigger than 
+the screen resolution, in order to store color and depth/stencil information 
+per subpixel. Therefore, the multisampling settings used for the depth/stencil 
+buffer must match the settings used for the render target. 
+8. 
+Layout: A member of the D3D12_TEXTURE_LAYOUT enumerated type that specifies 
+the texture layout. For now, we do not have to worry about the layout and can 
+specify 
+D3D12_TEXTURE_LAYOUT_UNKNOWN.
+9. MiscFlags: Miscellaneous resource flags. For a depth/stencil buffer resource, 
+specify D3D12_RESOURCE_MISC_DEPTH_STENCIL. 
+GPU resources live in heaps, which are essentially blocks of GPU memory with 
+certain properties. The ID3D12Device::CreateCommittedResource method creates 
+and commits a resource to a particular heap with the properties we specify.
+HRESULT ID3D12Device::CreateCommittedResource(
+  const D3D12_HEAP_PROPERTIES *pHeapProperties,
+  D3D12_HEAP_MISC_FLAG HeapMiscFlags,
+  const D3D12_RESOURCE_DESC *pResourceDesc,
+  D3D12_RESOURCE_USAGE InitialResourceState,
+  const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+  REFIID riidResource,
+  void **ppvResource);
+typedef struct D3D12_HEAP_PROPERTIES {
+ D3D12_HEAP_TYPE      Type;
+ D3D12_CPU_PAGE_PROPERTIES CPUPageProperties;
+ D3D12_MEMORY_POOL     MemoryPoolPreference;
+--- Page 161 ---
+DIRECT 3D INITIALIZATION  127
+ UINT CreationNodeMask;
+ UINT VisibleNodeMask;
+} D3D12_HEAP_PROPERTIES;
+1. pHeapProperties: The properties of the heap we want to commit the resource 
+to. Some of these properties are for advanced usage. For now, the main 
+property we need to worry about is the 
+D3D12_HEAP_TYPE, which can be one of 
+the following members of the D3D12_HEAP_PROPERTIES enumerated type:
+  a)  D3D12_HEAP_TYPE_DEFAULT: Default heap. This is where we commit resources 
+that will be solely accessed by the GPU. Take the depth/stencil buffer as an 
+example: The GPU reads and writes to the depth/stencil buffer. The CPU 
+never needs access to it, so the depth/stencil buffer would be placed in the 
+default heap.
+  b)  
+D3D12_HEAP_TYPE_UPLOAD: Upload heap. This is where we commit resources 
+where we need to upload data from the CPU to the GPU resource. 
+  c)  D3D12_HEAP_TYPE_READBACK: Read-back heap. This is where we commit 
+resources that need to be read by the CPU. 
+  d)  D3D12_HEAP_TYPE_CUSTOM: For advanced usage scenarios—see the MSDN 
+documentation for more information.
+2. HeapMiscFlags: Additional flags about the heap we want to commit the 
+resource to. This will usually be D3D12_HEAP_MISC_NONE.
+3. pResourceDesc: Pointer to a D3D12_RESOURCE_DESC instance describing the 
+resource we want to create.
+4. InitialResourceState: Recall from §4.2.3 that resources have a current usage 
+state. Use this parameter to set the initial state of the resource when it is 
+created. For the depth/stencil buffer, the initial state will be 
+D3D12_RESOURCE_
+USAGE_INITIAL, and then we will want to transition it to the D3D12_RESOURCE_
+USAGE_DEPTH so it can be bound to the pipeline as a depth/stencil buffer.
+5. pOptimizedClearValue: Pointer to a D3D12_CLEAR_VALUE object that describes 
+an optimized value for clearing resources. Clear calls that match the optimized 
+clear value can potentially be faster than clear calls that do not match the 
+optimized clear value. Null can also be  specified for this value to not specify 
+an optimized clear value.
+  struct D3D12_CLEAR_VALUE
+  {
+    DXGI_FORMAT Format;
+    union 
+    {
+      FLOAT Color[ 4 ];
+      D3D12_DEPTH_STENCIL_VALUE DepthStencil;
+    };
+  }  D3D12_CLEAR_VALUE;
+--- Page 162 ---
+128 DIRECT 3D FOUNDATIONS
+6. riidResource: The COM ID of the ID3D12Resource interface we want to obtain 
+a pointer to.
+7. ppvResource: Returns pointer to an ID3D12Resource that represents the newly 
+created resource.
+Resources should be placed in the default heap for optimal performance. Only 
+use upload or read back heaps if you need those features.
+In addition, before using the depth/stencil buffer, we must create an associated 
+depth/stencil view to be bound to the pipeline. This is done similarly to creating 
+the render target view. The following code example shows how we create the 
+depth/stencil texture and its corresponding depth/stencil view:
+// Create the depth/stencil buffer and view.
+D3D12_RESOURCE_DESC depthStencilDesc;
+depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+depthStencilDesc.Alignment = 0;
+depthStencilDesc.Width = mClientWidth;
+depthStencilDesc.Height = mClientHeight;
+depthStencilDesc.DepthOrArraySize = 1;
+depthStencilDesc.MipLevels = 1;
+depthStencilDesc.Format = mDepthStencilFormat;
+depthStencilDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
+depthStencilDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
+depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+D3D12_CLEAR_VALUE optClear;
+optClear.Format = mDepthStencilFormat;
+optClear.DepthStencil.Depth = 1.0f;
+optClear.DepthStencil.Stencil = 0;
+ThrowIfFailed(md3dDevice->CreateCommittedResource(
+  &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+  D3D12_HEAP_FLAG_NONE,
+  &depthStencilDesc,
+  D3D12_RESOURCE_STATE_COMMON,
+  &optClear,
+  IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
+// Create descriptor to mip level 0 of entire resource using the
+// format of the resource.
+md3dDevice->CreateDepthStencilView(
+  mDepthStencilBuffer.Get(),
+  nullptr, 
+  DepthStencilView());
+// Transition the resource from its initial state to be used as a depth buffer.
+mCommandList->ResourceBarrier(
+  1, 
+  &CD3DX12_RESOURCE_BARRIER::Transition(
+    mDepthStencilBuffer.Get(),
+Note:
+--- Page 163 ---
+DIRECT 3D INITIALIZATION  129
+    D3D12_RESOURCE_STATE_COMMON,
+    D3D12_RESOURCE_STATE_DEPTH_WRITE));
+Note that we use the CD3DX12_HEAP_PROPERTIES helper constructor to create the 
+heap properties structure, which is implemented like so:
+explicit CD3DX12_HEAP_PROPERTIES( 
+    D3D12_HEAP_TYPE type, 
+    UINT creationNodeMask = 1, 
+    UINT nodeMask = 1 )
+{
+  Type = type;
+  CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+  MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+  CreationNodeMask = creationNodeMask;
+  VisibleNodeMask = nodeMask;
+}
+The second parameter of CreateDepthStencilView is a pointer to a D3D12_DEPTH_
+STENCIL_VIEW_DESC. Among other things, this structure describes the data type 
+(format) of the elements in the resource. If the resource was created with a typed 
+format (i.e., not typeless), then this parameter can be null, which indicates to 
+create a view to the first mipmap level of this resource (the depth/stencil buffer 
+was created with only one mipmap level) with the format the resource was created 
+with. (Mipmaps are discussed in Chapter 9.) Because we specified the type of our 
+depth/stencil buffer, we specify null for this parameter. 
+4.3.9 Set the Viewport
+Usually we like to draw the 3D scene to the entire back buffer, where the back 
+buffer size corresponds to the entire screen (full-screen mode) or the entire client 
+area of a window. However, sometimes we only want to draw the 3D scene into a 
+subrectangle of the back buffer; see Figure 4.9.
+Figure 4.9. By modifying the viewport, we can draw the 3D scene into a subrectangle of the back buffer. 
+The back buffer then gets presented to the client area of the window.
+--- Page 164 ---
+130 DIRECT 3D FOUNDATIONS
+The subrectangle of the back buffer we draw into is called the viewport and it is 
+described by the following structure:
+typedef struct D3D12_VIEWPORT {
+  FLOAT TopLeftX;
+  FLOAT TopLeftY;
+  FLOAT Width;
+  FLOAT Height;
+  FLOAT MinDepth;
+  FLOAT MaxDepth;
+} D3D12_VIEWPORT;
+The first four data members define the viewport rectangle relative to the back 
+buffer (observe that we can specify fractional pixel coordinates because the data 
+members are of type 
+float). In Direct3D, depth values are stored in the depth 
+buffer in a normalized range of 0 to 1. The MinDepth and MaxDepth members 
+are used to transform the depth interval [0, 1] to the depth interval [ MinDepth, 
+MaxDepth]. Being able to transform the depth range can be used to achieve certain 
+effects; for example, you could set MinDepth=0 and MaxDepth=0, so that all objects 
+drawn with this viewport will have depth values of 0 and appear in front of all 
+other objects in the scene. However, usually 
+MinDepth is set to 0 and MaxDepth is set 
+to 1 so that the depth values are not modified. 
+Once we have ﬁ lled out the D3D12_VIEWPORT structure, we set the viewport with 
+Direct3D with the ID3D12CommandList::RSSetViewports method. The following 
+example creates and sets a viewport that draws onto the entire back buffer:
+D3D12_VIEWPORT vp;
+vp.TopLeftX = 0.0f;
+vp.TopLeftY = 0.0f;
+vp.Width  = static_cast<float>(mClientWidth);
+vp.Height  = static_cast<float>(mClientHeight);
+vp.MinDepth = 0.0f;
+vp.MaxDepth = 1.0f;
+mCommandList->RSSetViewports(1, &vp);
+The ﬁ rst parameter is the number of viewports to bind (using more than one 
+is for advanced effects), and the second parameter is a pointer to an array of 
+viewports.
+You cannot specify multiple viewports to the same render target. Multiple 
+viewports are used for advanced techniques that render to multiple render 
+targets at the same time. 
+The viewport needs to be reset whenever the command list is reset. 
+Y ou could use the viewport to implement split screens for two-player game 
+modes, for example. Y ou would create two viewports, one for the left half of the 
+Note:
+Note:
+--- Page 165 ---
+DIRECT 3D INITIALIZATION  131
+screen and one for the right half of the screen. Then you would draw the 3D scene 
+from the perspective of Player 1 into the left viewport and draw the 3D scene from 
+the perspective of Player 2 into the right viewport. 
+4.3.10 Set the Scissor Rectangles
+We can define a scissor rectangle relative to the back buffer such that pixels outside 
+this rectangle are culled (i.e., not rasterized to the back buffer). This can be used 
+for optimizations. For example, if we know an area of the screen will contain a 
+rectangular UI element on top of everything, we do not need to process the pixels 
+of the 3D world that the UI element will obscure. 
+A scissor rectangle is deﬁ ned by a 
+D3D12_RECT structure which is typedefed to 
+the following structure:
+typedef struct tagRECT
+{
+  LONG  left;
+  LONG  top;
+  LONG  right;
+  LONG  bottom;
+} RECT;
+We set the scissor rectangle with Direct3D with the ID3D12CommandList::RSSetSci
+ssorRects method. The following example creates and sets a scissor rectangle that 
+covers the upper-left quadrant of the back buffer:
+mScissorRect = { 0, 0, mClientWidth/2, mClientHeight/2 };
+mCommandList->RSSetScissorRects(1, &mScissorRect);
+Similar to RSSetViewports, the first parameter is the number of scissor rectangles 
+to bind (using more than one is for advanced effects), and the second parameter is 
+a pointer to an array of rectangles.
+You cannot specify multiple scissor rectangles on the same render target. Multiple 
+scissor rectangles are used for advanced techniques that render to multiple render 
+targets at the same time. 
+The scissors rectangles need to be reset whenever the command list is reset. 
+4.4 TIMING AND ANIMATION
+T o do animation correctly, we will need to keep track of the time. In particular, 
+we will need to measure the amount of time that elapses between frames of 
+animation. If the frame rate is high, these time intervals between frames will be 
+very short; therefore, we need a timer with a high level of accuracy.
+Note:
+Note:
+--- Page 166 ---
+132 DIRECT 3D FOUNDATIONS
+4.4.1 The Performance Timer
+For accurate time measurements, we use the performance timer (or performance 
+counter). T o use the Win32 functions for querying the performance timer, we 
+must 
+#include <windows.h>. 
+The performance timer measures t ime in units called counts. We obtain the 
+current time value, measured in counts, of the performance timer with the 
+QueryPerformanceCounter function like so:
+  __int64 currTime;
+  QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
+Observe that this function returns the current time value through its parameter, 
+which is a 64-bit integer value.
+T o get the frequency (counts per second) of the performance timer, we use the 
+QueryPerformanceFrequency function:
+  __int64 countsPerSec;
+  QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
+Then the number of seconds (or fractions of a second) per count is just the 
+reciprocal of the counts per second:
+  mSecondsPerCount = 1.0 / (double)countsPerSec;
+Thus, to convert a time reading valueInCounts to seconds, we just multiply it by 
+the conversion factor mSecondsPerCount
+  valueInSecs = valueInCounts * mSecondsPerCount;
+The values returned by the QueryPerformanceCounter function are not particularly 
+interesting in and of themselves. What we do is get the current time value using 
+QueryPerformanceCounter, and then get the current time value a little later using 
+QueryPerformanceCounter again. Then the time that elapsed between those two 
+time calls is just the difference. That is, we always look at the relative difference 
+between two time stamps to measure time, not the actual values returned by the 
+performance counter. The following better illustrates the idea: 
+  __int64 A = 0;
+  QueryPerformanceCounter((LARGE_INTEGER*)&A);
+  /* Do work */
+  __int64 B = 0;
+  QueryPerformanceCounter((LARGE_INTEGER*)&B);
+So it took (B–A) counts to do the work, or (B–A)*mSecondsPerCount seconds to do 
+the work. 
+--- Page 167 ---
+DIRECT 3D INITIALIZATION  133
+MSDN has the following remark about QueryPerformanceCounter: “On 
+a multiprocessor computer, it should no t matter which processor is called. 
+However, you can get different results on different processors due to bugs in the 
+basic input/output system (BIOS) or the hardware abstraction layer (HAL). ” 
+You can use the 
+SetThreadAfﬁ nityMask function so that the main application 
+thread does not get switch to another processor.
+4.4.2 Game Timer Class
+In the next two sections, we will discuss the implementation of the following 
+GameTimer class. 
+class GameTimer
+{
+public:
+ GameTimer();
+ float GameTime()const; // in seconds
+ float DeltaTime()const; // in seconds
+ void Reset(); // Call before message loop.
+ void Start(); // Call when unpaused.
+ void Stop(); // Call when paused.
+ void Tick(); // Call every frame.
+private:
+ double mSecondsPerCount;
+ double mDeltaTime;
+ __int64 mBaseTime;
+ __int64 mPausedTime;
+ __int64 mStopTime;
+ __int64 mPrevTime;
+ __int64 mCurrTime;
+ bool mStopped;
+};
+The constructor, in particular, queries the frequency of the performance counter. 
+The other member functions are discussed in the next two sections.
+GameTimer::GameTimer()
+: mSecondsPerCount(0.0), mDeltaTime(-1.0), mBaseTime(0), 
+ mPausedTime(0), mPrevTime(0), mCurrTime(0), mStopped(false)
+{
+ __int64 countsPerSec;
+ QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
+ mSecondsPerCount = 1.0 / (double)countsPerSec;
+}
+Note:
+--- Page 168 ---
+134 DIRECT 3D FOUNDATIONS
+The GameTimer class and implementations are in the GameTimer.h and GameTimer.
+cpp files, which can be found in the Common directory of the sample code.
+4.4.3 Time Elapsed Between Frames
+When we render our frames of animation, we will need to know how much time 
+has elapsed between frames so that we can update our game objects based on how 
+much time has passed. Computing the time elapsed between frames proceeds as 
+follows. Let t
+i be the time returned by the performance counter during the ith 
+frame and let ti1 be the time returned by the performance counter during the 
+previous frame. Then the time elapsed between the ti1 reading and the ti reading 
+is t ti – ti1. For real-time rendering, we typically require at least 30 frames per 
+second for smooth animation (and we usually have much higher rates); thus, 
+t  t
+i – ti1 tends to be a relatively small number.
+The following code shows how t is computed in code:
+void GameTimer::Tick()
+{
+ if( mStopped )
+ {
+  mDeltaTime = 0.0;
+  return;
+ }
+ // Get the time this frame.
+ __int64 currTime;
+ QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
+ mCurrTime = currTime;
+ // Time difference between this frame and the previous.
+ mDeltaTime = (mCurrTime - mPrevTime)*mSecondsPerCount;
+ // Prepare for next frame.
+ mPrevTime = mCurrTime;
+ // Force nonnegative. The DXSDK’s CDXUTTimer mentions that if the 
+ // processor goes into a power save mode or we get shuffled to
+ // another processor, then mDeltaTime can be negative.
+ if(mDeltaTime < 0.0)
+ {
+  mDeltaTime = 0.0;
+ }
+}
+float GameTimer::DeltaTime()const
+{
+ return (float)mDeltaTime;
+}
+--- Page 169 ---
+DIRECT 3D INITIALIZATION  135
+The function Tick is called in the application message loop as follows:
+int D3DApp::Run()
+{
+  MSG msg = {0};
+ 
+  mTimer.Reset();
+  while(msg.message != WM_QUIT)
+  {
+    // If there are Window messages then process them.
+    if(PeekMessage( &msg, 0, 0, 0, PM_REMOVE ))
+    {
+      TranslateMessage( &msg );
+      DispatchMessage( &msg );
+    }
+    // Otherwise, do animation/game stuff.
+    else
+    { 
+      mTimer.Tick();
+      if( !mAppPaused )
+      {
+        CalculateFrameStats();
+        Update(mTimer); 
+        Draw(mTimer);
+      }
+      else
+      {
+        Sleep(100);
+      }
+    }
+  }
+  return (int)msg.wParam;
+}
+In this way, t is computed every frame and fed into the UpdateScene method 
+so that the scene can be updated based on how much time has passed since the 
+previous frame of animation. The implementation of the 
+Reset method is:
+void GameTimer::Reset()
+{
+ __int64 currTime;
+ QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
+ mBaseTime = currTime;
+ mPrevTime = currTime;
+ mStopTime = 0;
+ mStopped = false;
+} 
+Some of the variables shown have not been discussed yet (see §4.4.4). However, 
+we see that this initializes mPrevTime to the current time when Reset is called. It is 
+--- Page 170 ---
+136 DIRECT 3D FOUNDATIONS
+important to do this because for the first frame of animation, there is no previous 
+frame, and therefore, no previous time stamp ti1. Thus this value needs to be 
+initialized in the Reset method before the message loop starts.
+4.4.4 Total Time
+Another time measurement that can be useful is the amount of time that has 
+elapsed since the application start, not counting paused time; we will call this total 
+time. The following situation shows how this could be useful. Suppose the player 
+has 300 seconds to complete a level. When the level starts, we can get the time 
+t
+start which is the time elapsed since the application started. Then after the level 
+has started, every so often we can check the time t since the application started. If 
+t − tstart > 300s (see Figure 4.10) then the player has been in the level for over 300 
+seconds and loses. Obviously in this situation, we do not want to count any time 
+the game was paused against the player.
+Another application of total time is when we want to animate a quantity as a 
+function of time. For instance, suppose we wish to have a light orbit the scene as a 
+function of time. Its position can be described by the parametric equations:
+ 
+10cos
+20     
+10sin
+xt
+y
+zt
+
+ 
+ 
+Here t represents time, and as t (time) increases, the coordinates of the light are 
+updated so that the light moves in a circle with radius 10 in the y  20 plane. For 
+this kind of animation, we also do not want to count paused time; see Figure 4.11.
+T o implement total time, we use the following variables:
+  __int64 mBaseTime;
+  __int64 mPausedTime;
+  __int64 mStopTime;
+As we saw in §4.4.3, mBaseTime is initialized to the current time when Reset was 
+called. We can think of this as the time when the application started. In most cases, 
+ݐݎܽݐݏݐ 
+ݐ 
+ݐݎܽݐݏݐ 
+0 
+Figure 4.10. Computing the time since the level started. Note that we choose the application start time as 
+the origin (0), and measure time values relative to that frame of reference.
+--- Page 171 ---
+DIRECT 3D INITIALIZATION  137
+you will only call Reset once before the message loop, so mBaseTime stays constant 
+throughout the application’s lifetime. The variable mPausedTime accumulates all 
+the time that passes while we are paused. We need to accumulate this time so we 
+can subtract it from the total running time, in order to not count paused time. 
+The 
+mStopTime variable gives us the time when the timer is stopped (paused); this 
+is used to help us keep track of paused time.
+Two important methods of the GameTimer class are Stop and Start. They should 
+be called when the application is pause d and unpaused, respectively, so that the 
+GameTimer can keep track of paused time. The code comments explain the details 
+of these two methods.
+void GameTimer::Stop()
+{
+ // If we are already stopped, then don’t do anything.
+ if( !mStopped )
+ {
+  __int64 currTime;
+  QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
+  // Otherwise, save the time we stopped at, and set 
+  // the Boolean flag indicating the timer is stopped.
+  mStopTime = currTime;
+  mStopped = true;
+ }
+}
+void GameTimer::Start()
+{
+ __int64 startTime;
+ QueryPerformanceCounter((LARGE_INTEGER*)&startTime);
+ // Accumulate the time elapsed between stop and start pairs.
+ //
+ //        |<-------d------->|
+/g1816(/g18721) 
+/g1816(/g18722)
++/g1850
++/g1852
+Figure 4.11. If we paused at t1 and unpaused at t2, and counted paused time, then when we unpause, the 
+position will jump abruptly from p(t1) to p(t2).
+--- Page 172 ---
+138 DIRECT 3D FOUNDATIONS
+ // ---------------*-----------------*------------> time
+ //       mStopTime    startTime   
+ // If we are resuming the timer from a stopped state...
+ if( mStopped )
+ {
+  // then accumulate the paused time.
+  mPausedTime += (startTime - mStopTime); 
+  // since we are starting the timer back up, the current 
+  // previous time is not valid, as it occurred while paused.
+  // So reset it to the current time.
+  mPrevTime = startTime;
+  // no longer stopped...
+  mStopTime = 0;
+  mStopped = false;
+ }
+}
+Finally, the TotalTime member function, which returns the time elapsed since 
+Reset was called not counting paused time, is implemented as follows:
+float GameTimer::TotalTime()const
+{
+// If we are stopped, do not count the time that has passed
+// since we stopped. Moreover, if we previously already had
+// a pause, the distance mStopTime - mBaseTime includes paused 
+// time,which we do not want to count. To correct this, we can
+// subtract the paused time from mStopTime: 
+//
+//        previous paused time
+//         |<----------->|
+// ---*------------*-------------*-------*-----------*------> time
+// mBaseTime             mStopTime  mCurrTime
+ if( mStopped )
+ {
+  return (float)(((mStopTime - mPausedTime)-
+   mBaseTime)*mSecondsPerCount);
+ }
+// The distance mCurrTime - mBaseTime includes paused time,
+// which we do not want to count. To correct this, we can subtract 
+// the paused time from mCurrTime: 
+//
+// (mCurrTime - mPausedTime) - mBaseTime 
+//
+//           |<--paused time-->|
+// ----*---------------*-----------------*------------*------> time
+// mBaseTime    mStopTime    startTime   mCurrTime
+ 
+ else
+ {
+--- Page 173 ---
+DIRECT 3D INITIALIZATION  139
+  return (float)(((mCurrTime-mPausedTime)-
+   mBaseTime)*mSecondsPerCount);
+ }
+}
+Our demo framework creates an instance of GameTimer for measuring the total 
+time since the application started, and the time elapsed between frames; however, 
+you can also create additional instances and use them as generic “stopwatches. ” 
+For example, when a bomb is ignited, you could start a new 
+GameTimer, and when 
+the TotalTime reached 5 seconds, you could raise an event that the bomb exploded.  
+4.5 THE DEMO APPLICATION FRAMEWORK
+The demos in this book use code from the d3dUtil.h, d3dUtil.cpp, d3dApp.h, and 
+d3dApp.cpp files, which can be downloaded from the book’s website. The d3dUtil.h 
+and d3dUtil.cpp files contain useful utility code, and the d3dApp.h and d3dApp.cpp 
+files contain the core Direct3D application class code that is used to encapsulate 
+a Direct3D sample application. The reader is encouraged to study these files after 
+reading this chapter, as we do not cover every line of code in these files (e.g., we do 
+not show how to create a window, as basic Win32 programming is a prerequisite 
+of this book). The goal of this framework was to hide the window creation code 
+and Direct3D initialization code; by hiding this code, we feel it makes the demos 
+less distracting, as you can focus only on the specific details the sample code is 
+trying to illustrate.
+4.5.1 D3DApp
+The D3DApp class is the base Direct3D application class, which provides functions 
+for creating the main application window, running the application message loop, 
+handling window messages, and initializing Direct3D. Moreover, the class defines 
+the framework functions for the demo applications. Clients are to derive from 
+D3DApp, override the virtual framework functions, and instantiate only a single 
+instance of the derived D3DApp class. The D3DApp class is defined as follows:
+#include "d3dUtil.h"
+#include "GameTimer.h"
+// Link necessary d3d12 libraries.
+#pragma comment(lib,"d3dcompiler.lib")
+#pragma comment(lib, "D3D12.lib")
+#pragma comment(lib, "dxgi.lib")
+class D3DApp
+{
+--- Page 174 ---
+140 DIRECT 3D FOUNDATIONS
+protected:
+  D3DApp(HINSTANCE hInstance);
+  D3DApp(const D3DApp& rhs) = delete;
+  D3DApp& operator=(const D3DApp& rhs) = delete;
+  virtual ~D3DApp();
+public:
+  static D3DApp* GetApp();
+  
+  HINSTANCE AppInst()const;
+  HWND   MainWnd()const;
+  float   AspectRatio()const;
+  bool Get4xMsaaState()const;
+  void Set4xMsaaState(bool value);
+  int Run();
+ 
+  virtual bool Initialize();
+  virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
+lParam);
+protected:
+  virtual void CreateRtvAndDsvDescriptorHeaps();
+  virtual void OnResize(); 
+  virtual void Update(const GameTimer& gt)=0;
+  virtual void Draw(const GameTimer& gt)=0;
+  // Convenience overrides for handling mouse input.
+  virtual void OnMouseDown(WPARAM btnState, int x, int y){ }
+  virtual void OnMouseUp(WPARAM btnState, int x, int y) { }
+  virtual void OnMouseMove(WPARAM btnState, int x, int y){ }
+protected:
+  bool InitMainWindow();
+  bool InitDirect3D();
+  void CreateCommandObjects();
+  void CreateSwapChain();
+  void FlushCommandQueue();
+  ID3D12Resource* CurrentBackBuffer()const
+  {
+    return mSwapChainBuffer[mCurrBackBuffer].Get();
+  }
+  D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView()const
+  {
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+      mRtvHeap->GetCPUDescriptorHandleForHeapStart(), 
+      mCurrBackBuffer, 
+      mRtvDescriptorSize);
+  }
+--- Page 175 ---
+DIRECT 3D INITIALIZATION  141
+  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView()const
+  {
+    return mDsvHeap->GetCPUDescriptorHandleForHeapStart();
+  }
+  void CalculateFrameStats();
+  void LogAdapters();
+  void LogAdapterOutputs(IDXGIAdapter* adapter);
+  void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
+protected:
+  static D3DApp* mApp;
+  HINSTANCE mhAppInst = nullptr; // application instance handle
+  HWND   mhMainWnd = nullptr; // main window handle
+  bool   mAppPaused = false; // is the application paused?
+  bool   mMinimized = false; // is the application minimized?
+  bool   mMaximized = false; // is the application maximized?
+  bool   mResizing = false;  // are the resize bars being dragged?
+  bool   mFullscreenState = false;// fullscreen enabled
+  // Set true to use 4X MSAA (§4.1.8). The default is false.
+  bool   m4xMsaaState = false;  // 4X MSAA enabled
+  UINT   m4xMsaaQuality = 0;   // quality level of 4X MSAA
+  // Used to keep track of the "delta-time" and game time (§4.4).
+  GameTimer mTimer;
+ 
+  Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;
+  Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
+  Microsoft::WRL::ComPtr<ID3D12Device> md3dDevice;
+  Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
+  UINT64 mCurrentFence = 0;
+ 
+  Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
+  Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
+  Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
+  static const int SwapChainBufferCount = 2;
+  int mCurrBackBuffer = 0;
+  Microsoft::WRL::ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBuf
+ferCount];
+  Microsoft::WRL::ComPtr<ID3D12Resource> mDepthStencilBuffer;
+  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mRtvHeap;
+  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDsvHeap;
+  D3D12_VIEWPORT mScreenViewport; 
+  D3D12_RECT mScissorRect;
+  UINT mRtvDescriptorSize = 0;
+  UINT mDsvDescriptorSize = 0;
+--- Page 176 ---
+142 DIRECT 3D FOUNDATIONS
+  UINT mCbvSrvDescriptorSize = 0;
+  // Derived class should set these in derived constructor to customize 
+  // starting values.
+  std::wstring mMainWndCaption = L"d3d App";
+  D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
+  DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+  DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+  int mClientWidth = 800;
+  int mClientHeight = 600;
+};
+We have used comments in the above code to describe some of the data members; 
+the methods are discussed in the subsequent sections.
+4.5.2 Non-Framework Methods
+1. D3DApp: The constructor simply initializes the data members to default values.
+2. ~D3DApp: The destructor releases the COM interfaces the D3DApp acquires, and 
+flushes the command queue. The reason we need to flush the command queue 
+in the destructor is that we need to wait until the GPU is done processing 
+the commands in the queue before we destroy any resources the GPU is still 
+referencing. Otherwise, the GPU might crash when the application exits.
+D3DApp::~D3DApp()
+{
+  if(md3dDevice != nullptr)
+    FlushCommandQueue();
+} 
+3. AppInst: Trivial access function returns a copy of the application instance 
+handle.
+4. MainWnd: Trivial access function returns a copy of the main window handle.
+5. AspectRatio: The aspect ratio is defined as the ratio of the back buffer width 
+to its height. The aspect ratio will be used in the next chapter. It is trivially 
+implemented as:
+  float D3DApp::AspectRatio()const
+  {
+    return static_cast<float>(mClientWidth) / mClientHeight;
+  }
+6. Get4xMsaaState: Returns true is 4X MSAA is enabled and false otherwise.
+7. Set4xMsaaState: Enables/disables 4X MSAA.
+8. Run: This method wraps the application message loop. It uses the Win32 
+PeekMessage function so that it can process our game logic when no messages 
+are present. The implementation of this function was shown in §4.4.3.
+--- Page 177 ---
+DIRECT 3D INITIALIZATION  143
+9. InitMainWindow: Initializes the main application window; we assume the 
+reader is familiar with basic Win32 window initialization.
+10. InitDirect3D: Initializes Direct3D by implementing the steps discussed in §4.3.
+11. CreateSwapChain: Creates the swap chain (§4.3.5.).
+12. CreateCommandObjects: Creates the command queue, a command list allocator, 
+and a command list, as described in §4.3.4.
+13. FlushCommandQueue: Forces the CPU to wait until the GPU has finished 
+processing all the commands in the queue (see §4.2.2).
+14. CurrentBackBuffer: Returns an ID3D12Resource to the current back buffer in 
+the swap chain.
+15. CurrentBackBufferView: Returns the RTV (render target view) to the current 
+back buffer.
+16. DepthStencilView: Returns the DSV (depth/stencil view) to the main depth/
+stencil buffer.
+17. CalculateFrameStats: Calculates the average frames per second and the 
+average milliseconds per frame. The implementation of this method is 
+discussed in §4.4.4.
+18. 
+LogAdapters: Enumerates all the adapters on a system (§4.1.10).
+19. LogAdapterOutputs: Enumerates all the outputs associated with an adapter 
+(§4.1.10).
+20. LogOutputDisplayModes: Enumerates all the display modes an output supports 
+for a given format (§4.1.10).
+4.5.3 Framework Methods
+For each sample application in this book, we consistently override six virtual 
+functions of 
+D3DApp. These six functions are used to implement the code specific 
+to the particular sample. The benefit of this setup is that the initialization code, 
+message handling, etc., is implemented in the 
+D3DApp class, so that the derived 
+class needs to only focus on the specific code of the demo application. Here is a 
+description of the framework methods:
+1. 
+Initialize: Use this method to put initialization code for the application such 
+as allocating resources, initializing objec ts, and setting up the 3D scene. The 
+D3DApp implementation of this method calls InitMainWindow and InitDirect3D; 
+therefore, you should call the D3DApp version of this method in your derived 
+implementation first like this:
+bool TestApp::Init()
+{
+--- Page 178 ---
+144 DIRECT 3D FOUNDATIONS
+  if(!D3DApp::Init())
+    return false;
+  /* Rest of initialization code goes here */
+}
+  so that your initialization code can access the initialized members of D3DApp.
+2. MsgProc: This method implements the window procedure function for the 
+main application window. Generally, you only need to override this method 
+if there is a message you need to handle that D3DApp::MsgProc does not handle 
+(or does not handle to your liking). The D3DApp implementation of this 
+method is explored in §4.5.5. If you override this method, any message that 
+you do not handle should be forwarded to 
+D3DApp::MsgProc. 
+3. CreateRtvAndDsvDescriptorHeaps: Virtual function where you create the RTV 
+and DSV descriptor heaps your application needs. The default implementation 
+creates an RTV heap with 
+SwapChainBufferCount many descriptors (for the 
+buffer in the swap chain) and a DSV heap with one descriptor (for the depth/
+stencil buffer). The default implementation will be sufficient for a lot of our 
+demos; for more advanced rendering techniques that use multiple render 
+targets, we will have to override this method.
+4. 
+OnResize: This method is called by D3DApp::MsgProc when a WM_SIZE message 
+is received. When the window is resized, some Direct3D properties need 
+to be changed, as they depend on the client area dimensions. In particular, 
+the back buffer and depth/stencil buffers need to be recreated to match the 
+new client area of the window. The back buffer can be resized by calling the 
+IDXGISwapChain::ResizeBuffers method. The depth/stencil buffer needs 
+to be destroyed and then remade based on the new dimension. In addition, 
+the render target and depth/stencil views need to be recreated. The 
+D3DApp 
+implementation of OnResize handles the code necessary to resize the back and 
+depth/stencil buffers; see the source code for the straightforward details. In 
+addition to the buffers, other properties depend on the size of the client area 
+(e.g., the projection matrix), so this method is part of the framework because 
+the client code may need to execute some of its own code when the window is 
+resized. 
+5. 
+Update: This abstract method is called every frame and should be used to 
+update the 3D application over time (e.g., perform animations, move the 
+camera, do collision detection, check for user input, and etc.). 
+6. 
+Draw: This abstract method is invoked every frame and is where we issue 
+rendering commands to actually draw our current frame to the back buffer. 
+When we are done drawing our frame, we call the 
+IDXGISwapChain::Present 
+method to present the back buffer to the screen.
+--- Page 179 ---
+DIRECT 3D INITIALIZATION  145
+In addition to the above six framework methods, we provide three other virtual 
+functions for convenience to handle the events when a mouse button is pressed, 
+released, and when the mouse moves:
+  virtual void OnMouseDown(WPARAM btnState, int x, int y){ }
+  virtual void OnMouseUp(WPARAM btnState, int x, int y) { }
+  virtual void OnMouseMove(WPARAM btnState, int x, int y){ }
+In this way, if you want to handle mouse messages, you can override these 
+methods instead of overriding the MsgProc method. The ﬁ rst parameter is the 
+same as the WPARAM parameter for the various mouse messages, which stores the 
+mouse button states (i.e., which mouse buttons were pressed when the event was 
+raised). The second and third parameters are the client area (x, y) coordinates 
+of the mouse cursor. 
+4.5.4 Frame Statistics
+It is common for games and graphics application to measure the number 
+of frames being rendered per second (FPS). T o do this, we simply count the 
+number of frames processed (and store it in a variable n) over some specified 
+time period t. Then, the average FPS over the time period t is fps
+avg  n/t  n. 
+If we set t  1, then fpsavg  n/1  n. In our code, we use t  1 (second) since it 
+avoids a division, and moreover, one second gives a pretty good average—it is 
+not too long and not too short. The code to compute the FPS is provided by the 
+D3DApp::CalculateFrameStats method:
+void D3DApp::CalculateFrameStats()
+{
+ // Code computes the average frames per second, and also the 
+ // average time it takes to render one frame. These stats 
+ // are appended to the window caption bar.
+  
+ static int frameCnt = 0;
+ static float timeElapsed = 0.0f;
+ frameCnt++;
+ // Compute averages over one second period.
+ if( (mTimer.TotalTime() - timeElapsed) >= 1.0f )
+ {
+  float fps = (float)frameCnt; // fps = frameCnt / 1
+  float mspf = 1000.0f / fps;
+  wstring fpsStr = to_wstring(fps);
+  wstring mspfStr = to_wstring(mspf);
+  wstring windowText = mMainWndCaption +
+     L"  fps: " + fpsStr +
+     L"  mspf: " + mspfStr;
+Note:
+--- Page 180 ---
+146 DIRECT 3D FOUNDATIONS
+     SetWindowText(mhMainWnd, windowText.c_str());
+  
+  // Reset for next average.
+  frameCnt = 0;
+  timeElapsed += 1.0f;
+ }
+}
+This method would be called every frame in order to count the frame.
+In addition to computing the FPS, the above code also computes the number of 
+milliseconds it takes, on average, to process a frame:
+  float mspf = 1000.0f / fps;
+The seconds per frame is just the reciprocal of the FPS, but we multiply by 1000 
+ms / 1 s to convert from seconds to milliseconds (recall there are 1000 ms per 
+second).
+The idea behind this line is to compute the time, in milliseconds, it takes 
+to render a frame; this is a different quantity than FPS (but observe this value 
+can be derived from the FPS). In actuality, the time it takes to render a frame is 
+more useful than the FPS, as we may directly see the increase/decrease in time 
+it takes to render a frame as we modify our scene. On the other hand, the FPS 
+does not immediately tell us the increase/decrease in time as we modify our scene. 
+Moreover, as [Dunlop03] points out in his article FPS versus Frame Time, due to 
+the non-linearity of the FPS curve, using the FPS can give misleading results. For 
+example, consider situation (1): Suppose our application is running at 1000 FPS, 
+taking 1 ms (millisecond) to render a frame. If the frame rate drops to 250 FPS, 
+then it takes 4 ms to render a frame. Now consider situation (2): Suppose that our 
+application is running at 100 FPS, taking 10 ms to render a frame. If the frame 
+rate drops to about 76.9 FPS, then it takes about 13 ms to render a frame. In both 
+situations, the rendering per frame increased by 3 ms, and thus both represent 
+the same increase in time it takes to render a frame. Reading the FPS is not as 
+straightforward. The drop from 1000 FPS to 250 FPS seems much more drastic 
+than the drop from 100 FPS to 76.9 FPS; however, as we have just showed, they 
+actually represent the same increase in time it takes to render a frame. 
+4.5.5 The Message Handler
+The window procedure we implement for our application framework does 
+the bare minimum. In general, we won’t be working very much with Win32 
+messages anyway. In fact, the core of our application code gets executed during 
+idle processing (i.e., when no window messages are present). Still, there are some 
+important messages we do need to process. However, because of the length of the 
+window procedure, we do not embed all the code here; rather, we just explain 
+--- Page 181 ---
+DIRECT 3D INITIALIZATION  147
+the motivation behind each message we handle. We encourage the reader to 
+download the source code files and spend some time getting familiar with the 
+application framework code, as it is the foundation of every sample for this book.
+The ﬁ rst message we handle is the 
+WM_ACTIVATE message. This message is sent 
+when an application becomes activated or deactivated. We implement it like so:
+case WM_ACTIVATE:
+  if( LOWORD(wParam) == WA_INACTIVE )
+  {
+    mAppPaused = true;
+    mTimer.Stop();
+  }
+  else
+  {
+    mAppPaused = false;
+    mTimer.Start();
+  }
+  return 0;
+As you can see, when our application becomes deactivated, we set the data 
+member mAppPaused to true, and when our application becomes active, we set the 
+data member mAppPaused to false. In addition, when the application is paused, 
+we stop the timer, and then resume the timer once the application becomes active 
+again. If we look back at the implementation to 
+D3DApp::Run (§4.4.3), we find 
+that if our application is paused, then we do not update our application code, but 
+instead free some CPU cycles back to the OS; in this way, our application does not 
+hog CPU cycles when it is inactive.
+The next message we handle is the 
+WM_SIZE message.  Recall that this message 
+is called when the window is resized. The main reason for handling this message 
+is that we want the back buffer and depth/stencil dimensions to match the 
+dimensions of the client area rectangle (so no stretching occurs). Thus, every 
+time the window is resized, we want to resize the buffer dimensions. The code 
+to resize the buffers is implemented in 
+D3DApp::OnResize. As already stated, 
+the back buffer can be resized by calling the IDXGISwapChain::ResizeBuffers 
+method. The depth/stencil buffer needs to be destroyed and then remade based 
+on the new dimensions. In addition, the render target and depth/stencil views 
+need to be recreated. If the user is dragging the resize bars, we must be careful 
+because dragging the resize bars sends continuous 
+WM_SIZE messages, and we do 
+not want to continuously resize the buffers. Therefore, if we determine that the 
+user is resizing by dragging, we actually do nothing (except pause the application) 
+until the user is done dragging the resize bars. We can do this by handling the 
+WM_
+EXITSIZEMOVE message. This message is sent when the user releases the resize bars. 
+// WM_ENTERSIZEMOVE is sent when the user grabs the resize bars.
+case WM_ENTERSIZEMOVE:
+--- Page 182 ---
+148 DIRECT 3D FOUNDATIONS
+  mAppPaused = true;
+  mResizing = true;
+  mTimer.Stop();
+  return 0;
+// WM_EXITSIZEMOVE is sent when the user releases the resize bars.
+// Here we reset everything based on the new window dimensions.
+case WM_EXITSIZEMOVE:
+  mAppPaused = false;
+  mResizing = false;
+  mTimer.Start();
+  OnResize();
+  return 0;
+The next three messages we handle are trivially implemented and so we just show 
+the code:
+// WM_DESTROY is sent when the window is being destroyed.
+case WM_DESTROY:
+  PostQuitMessage(0);
+  return 0;
+// The WM_MENUCHAR message is sent when a menu is active and the user 
+// presses a key that does not correspond to any mnemonic or 
+// accelerator key. 
+case WM_MENUCHAR:
+  // Don’t beep when we alt-enter.
+  return MAKELRESULT(0, MNC_CLOSE);
+// Catch this message to prevent the window from becoming too small.
+case WM_GETMINMAXINFO:
+  ((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
+  ((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200; 
+  return 0;
+Finally, to support our mouse input virtual functions, we handle the following 
+messages as follows:
+case WM_LBUTTONDOWN:
+case WM_MBUTTONDOWN:
+case WM_RBUTTONDOWN:
+  OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+  return 0;
+case WM_LBUTTONUP:
+case WM_MBUTTONUP:
+case WM_RBUTTONUP:
+  OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+  return 0;
+case WM_MOUSEMOVE:
+  OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+  return 0; 
+We must #include <Windowsx.h> for the GET_X_LPARAM and GET_Y_LPARAM macros.
+--- Page 183 ---
+DIRECT 3D INITIALIZATION  149
+4.5.6 The “Init Direct3D” Demo
+Now that we have discussed the application framework, let us make a small 
+application using it. The program requires almost no real work on our part since 
+the parent class 
+D3DApp does most of the work required for this demo. The main 
+thing to note is how we derive a class from D3DApp and implement the framework 
+functions, where we will write our sample specific code. All of the programs in 
+this book will follow the same template.
+#include "../../Common/d3dApp.h"
+#include <DirectXColors.h>
+using namespace DirectX;
+class InitDirect3DApp : public D3DApp
+{
+public:
+  InitDirect3DApp(HINSTANCE hInstance);
+  ~InitDirect3DApp();
+  virtual bool Initialize()override;
+private:
+  virtual void OnResize()override;
+  virtual void Update(const GameTimer& gt)override;
+  virtual void Draw(const GameTimer& gt)override;
+};
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
+      PSTR cmdLine, int showCmd)
+{
+  // Enable run-time memory check for debug builds.
+#if defined(DEBUG) | defined(_DEBUG)
+  _CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+#endif
+  try
+  {
+    InitDirect3DApp theApp(hInstance);
+    if(!theApp.Initialize())
+      return 0;
+    return theApp.Run();
+  }
+  catch(DxException& e)
+  {
+    MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+    return 0;
+  }
+}
+--- Page 184 ---
+150 DIRECT 3D FOUNDATIONS
+InitDirect3DApp::InitDirect3DApp(HINSTANCE hInstance)
+: D3DApp(hInstance) 
+{
+}
+InitDirect3DApp::~InitDirect3DApp()
+{
+}
+bool InitDirect3DApp::Initialize()
+{
+  if(!D3DApp::Initialize())
+    return false;
+  
+  return true;
+}
+void InitDirect3DApp::OnResize()
+{
+  D3DApp::OnResize();
+}
+void InitDirect3DApp::Update(const GameTimer& gt)
+{
+}
+void InitDirect3DApp::Draw(const GameTimer& gt)
+{
+  // Reuse the memory associated with command recording.
+  // We can only reset when the associated command lists have finished
+  // execution on the GPU.
+  ThrowIfFailed(mDirectCmdListAlloc->Reset());
+  // A command list can be reset after it has been added to the 
+  // command queue via ExecuteCommandList. Reusing the command list 
+reuses memory.
+  ThrowIfFailed(mCommandList->Reset(
+    mDirectCmdListAlloc.Get(), nullptr));
+  // Indicate a state transition on the resource usage.
+  mCommandList->ResourceBarrier(
+    1, &CD3DX12_RESOURCE_BARRIER::Transition(
+      CurrentBackBuffer(),
+      D3D12_RESOURCE_STATE_PRESENT, 
+      D3D12_RESOURCE_STATE_RENDER_TARGET));
+  // Set the viewport and scissor rect. This needs to be reset 
+  // whenever the command list is reset.
+  mCommandList->RSSetViewports(1, &mScreenViewport);
+  mCommandList->RSSetScissorRects(1, &mScissorRect);
+  // Clear the back buffer and depth buffer.
+  mCommandList->ClearRenderTargetView(
+--- Page 185 ---
+DIRECT 3D INITIALIZATION  151
+    CurrentBackBufferView(), 
+    Colors::LightSteelBlue, 0, nullptr);
+  mCommandList->ClearDepthStencilView(
+    DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | 
+    D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+ 
+  // Specify the buffers we are going to render to.
+  mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), 
+    true, &DepthStencilView());
+ 
+  // Indicate a state transition on the resource usage.
+  mCommandList->ResourceBarrier(
+    1, &CD3DX12_RESOURCE_BARRIER::Transition(
+    CurrentBackBuffer(),
+    D3D12_RESOURCE_STATE_RENDER_TARGET,
+    D3D12_RESOURCE_STATE_PRESENT));
+  // Done recording commands.
+  ThrowIfFailed(mCommandList->Close());
+ 
+  // Add the command list to the queue for execution.
+  ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+  mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+ 
+  // swap the back and front buffers
+  ThrowIfFailed(mSwapChain->Present(0, 0));
+  mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+  // Wait until frame commands are complete. This waiting is 
+  // inefficient and is done for simplicity. Later we will show how to 
+  // organize our rendering code so we do not have to wait per frame.
+  FlushCommandQueue();
+}
+There are some methods we have not yet discussed. The ClearRenderTargetView 
+method clears the specified render target to a given color, and the 
+ClearDepthStencilView method clears the specified depth/stencil buffer. We 
+always clear the back buffer render target and depth/stencil buffer every frame 
+before drawing to start the image fresh. These methods are declared as follows:
+void ID3D12GraphicsCommandList::ClearRenderTargetView( 
+  D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView,
+  const FLOAT ColorRGBA[ 4 ],
+  UINT NumRects,
+  const D3D12_RECT *pRects);
+1. RenderTargetView: RTV to the resource we want to clear.
+2. ColorRGBA: Defines the color to clear the render target to.
+3. NumRects: The number of elements in the pRects array. This can be 0.
+--- Page 186 ---
+152 DIRECT 3D FOUNDATIONS
+4. pRects: An array of D3D12_RECTs that identify rectangle regions on the render 
+target to clear. This can be a nullptr to indicate to clear the entire render 
+target.
+void ID3D12GraphicsCommandList::ClearDepthStencilView( 
+  D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView,
+  D3D12_CLEAR_FLAGS ClearFlags,
+  FLOAT Depth,
+  UINT8 Stencil,
+  UINT NumRects,
+  const D3D12_RECT *pRects);
+1. DepthStencilView: DSV to the depth/stencil buffer to clear.
+2. ClearFlags: Flags indicating which part of the depth/stencil buffer to clear. 
+This can be either D3D12_CLEAR_FLAG_DEPTH, D3D12_CLEAR_FLAG_STENCIL, or 
+both bitwised ORed together.
+3. Depth: Defines the value to clear the depth values to.
+4. Stencil: Defines the value to clear the stencil values to.
+5. NumRects: The number of elements in the pRects array. This can be 0.
+6. pRects: An array of D3D12_RECTs that identify rectangle regions on the render 
+target to clear. This can be a nullptr to indicate to clear the entire render 
+target.
+Another new method is the ID3D12GraphicsCommandList::OMSetRenderTargets 
+method. This method sets the render target and depth/stencil buffer we want to use 
+to the pipeline. For now, we want to use the current back buffer as a render target 
+and our main depth/stencil buffer. Later in this book, we will look at techniques 
+that use multiple render targets. This method has the following prototype:
+void ID3D12GraphicsCommandList::OMSetRenderTargets( 
+  UINT NumRenderTargetDescriptors,
+  const D3D12_CPU_DESCRIPTOR_HANDLE *pRenderTargetDescriptors,
+  BOOL RTsSingleHandleToDescriptorRange,
+  const D3D12_CPU_DESCRIPTOR_HANDLE *pDepthStencilDescriptor);
+1. NumRenderTargetDescriptors: Specifies the number of RTVs we are going to 
+bind. Using multiple render targets simultaneously is used for some advanced 
+techniques. For now, we always use one RTV .
+2. 
+pRenderTargetDescriptors: Pointer to an array of RTVs that specify the render 
+targets we want to bind to the pipeline.
+3. RTsSingleHandleToDescriptorRange: Specify true if all the RTVs in the 
+previous array are contiguous in the descriptor heap. Otherwise, specify false.
+4. pDepthStencilDescriptor: Pointer to a DSV that specifies the depth/stencil 
+buffer we want to bind to the pipeline.
+--- Page 187 ---
+DIRECT 3D INITIALIZATION  153
+Finally, the IDXGISwapChain::Present method swaps the back and front buffers. 
+When we Present the swap chain to swap the front and back buffers, we have to 
+update the index to the current back buffer as well so that we render to the new 
+back buffer on the subsequent frame:
+ThrowIfFailed(mSwapChain->Present(0, 0));
+mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+Figure 4.12. A screenshot of the sample program for Chapter 4.
+4.6 DEBUGGING DIRECT3D APPLICATIONS
+Many Direct3D functions return HRESULT error codes. For our sample programs, 
+we use a simple error handling system where we check a returned HRESULT, and if it 
+failed, we throw an exception that stores the error code, function name, filename, 
+and line number of the offending call. This is done with the following code in 
+d3dUtil.h:
+class DxException
+{
+public:
+  DxException() = default;
+  DxException(HRESULT hr, const std::wstring& functionName, 
+    const std::wstring& filename, int lineNumber);
+  std::wstring ToString()const;
+  HRESULT ErrorCode = S_OK;
+  std::wstring FunctionName;
+  std::wstring Filename;
+  int LineNumber = -1;
+};
+#ifndef ThrowIfFailed
+#define ThrowIfFailed(x) \
+{ \
+  HRESULT hr__ = (x); \
+  std::wstring wfn = AnsiToWString(__FILE__); \
+  if(FAILED(hr__)) { throw DxException(hr__, L#x, wfn, __LINE__); } \
+}
+#endif
+--- Page 188 ---
+154 DIRECT 3D FOUNDATIONS
+Observe that ThrowIfFailed must be a macro and not a function; otherwise __
+FILE__ and __LINE__ would refer to the file and line of the function implementation 
+instead of the file and line where ThrowIfFailed was written.
+The L#x turns the ThrowIfFailed macro’s argument token into a Unicode string. 
+In this way, we can output the function call that caused the error to the message 
+box. 
+For a Direct3D function that returns an 
+HRESULT, we use the macro like so:
+ThrowIfFailed(md3dDevice->CreateCommittedResource(
+  &CD3D12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+  D3D12_HEAP_MISC_NONE,
+  &depthStencilDesc,
+  D3D12_RESOURCE_USAGE_INITIAL,
+  IID_PPV_ARGS(&mDepthStencilBuffer)));
+Our entire application exists in a try/catch block:
+  try
+  {
+    InitDirect3DApp theApp(hInstance);
+    if(!theApp.Initialize())
+      return 0;
+    return theApp.Run();
+  }
+  catch(DxException& e)
+  {
+    MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+    return 0;
+  }
+If an HRESULT fails, an exception is thrown, we output information about it via 
+the MessageBox function, and then exit the application. For example, if we pass 
+an invalid argument to CreateCommittedResource , we get the following message 
+box:
+Figure 4.13. Example of the error message box shown when an HRESULT fails.
+--- Page 189 ---
+DIRECT 3D INITIALIZATION  155
+4.7 SUMMARY
+1. Direct3D can be thought of as a mediator between the programmer and the 
+graphics hardware. For example, the programmer calls Direct3D functions 
+to bind resource views to the hardware rendering pipeline, to configure the 
+output of the rendering pipeline, and to draw 3D geometry.
+2. Component Object Model (COM) is the technology that allows DirectX 
+to be language independent and have backwards compatibility. Direct3D 
+programmers don’t need to know the details of COM and how it works; they 
+need only to know how to acquire COM interfaces and how to release them.
+3. A 1D texture is like a 1D array of data elements, a 2D texture is like a 2D 
+array of data elements, and a 3D texture is like a 3D array of data elements. 
+The elements of a texture must have a format described by a member of the 
+DXGI_FORMAT enumerated type. T extures typically contain image data, but they 
+can contain other data, too, such as depth information (e.g., the depth buffer). 
+The GPU can do special operations on textures, such as filter and multisample 
+them. 
+4. T o avoid flickering in animation, it is best to draw an entire frame of animation 
+into an off-screen texture called the back buffer. Once the entire scene has 
+been drawn to the back buffer for the given frame of animation, it is presented 
+to the screen as one complete frame; in this way, the viewer does not watch as 
+the frame gets drawn. After the frame has been drawn to the back buffer, the 
+roles of the back buffer and front buffer are reversed: the back buffer becomes 
+the front buffer and the front buffer becomes the back buffer for the next 
+frame of animation. Swapping the roles of the back and front buffers is called 
+presenting. The front and back buffer form a swap chain, represented by the 
+IDXGISwapChain interface. Using two buffers (front and back) is called double 
+buffering. 
+5. Assuming opaque scene objects, the points nearest to the camera occlude 
+any points behind them. Depth buffering is a technique for determining the 
+points in the scene nearest to the camera. In this way, we do not have to worry 
+about the order in which we draw our scene objects.   
+6. In Direct3D, resources are not bound to the pipeline directly. Instead, we 
+bind resources to the rendering pipeline by specifying the descriptors that 
+will be referenced in the draw call. A descriptor object can be thought of as 
+lightweight structure that identifies and describes a resource to the GPU. 
+Different descriptors of a single resource may be created. In this way, a single 
+resource may be viewed in different ways; for example, bound to different 
+--- Page 190 ---
+156 DIRECT 3D FOUNDATIONS
+stages of the rendering pipeline or have its bits interpreted as a different DXGI_
+FORMAT. Applications create descriptor heaps which form the memory backing 
+of descriptors. 
+7. The  ID3D12Device is the chief Direct3D interface that can be thought of as 
+our software controller of the physical graphics device hardware; through it, 
+we can create GPU resources, and create other specialized interfaces used to 
+control the graphics hardware and instruct it to do things.
+8. The GPU has a command queue. The CPU submits commands to the queue 
+through the Direct3D API using command lists. A command instructs the 
+GPU to do something. Submitted commands are not executed by the GPU 
+until they reach the front of the queue. If the command queue gets empty, 
+the GPU will idle because it does not have any work to do; on the other hand, 
+if the command queue gets too full, the CPU will at some point have to idle 
+while the GPU catches up. Both of these scenarios underutilize the system’s 
+hardware resources.
+9. The GPU is a second processor in the system that runs in parallel with 
+the CPU. Sometimes the CPU and GPU will need to be synchronized. For 
+example, if the GPU has a command in its queue that references a resource, 
+the CPU must not modify or destroy that resource until the GPU is done with 
+it. Any synchronization methods that cause one of the processors to wait and 
+idle should be minimized, as it means we are not taking full advantage of the 
+two processors.
+10. The performance counter is a high-resolution timer that provides accurate 
+timing measurements needed for measuring small time differentials, such 
+as the time elapsed between frames. The performance timer works in time 
+units called counts. The 
+QueryPerformanceFrequency outputs the counts per 
+second of the performance timer, which can then be used to convert from 
+units of counts to seconds. The current time value of the performance timer 
+(measured in counts) is obtained with the 
+QueryPerformanceCounter function.
+11. T o compute the average frames per second (FPS), we count the number of 
+frames processed over some time interval t. Let n be the number of frames 
+counted over time t, then the average frames per second over that time 
+interval is avg
+nfps t  . The frame rate can give misleading conclusions about 
+performance; the time it takes to process a frame is more informative. The 
+amount of time, in seconds, spent processing a frame is the reciprocal of the 
+frame rate, i.e., 1/ fps
+avg. 
+12. The sample framework is used to provide a consistent interface that all demo 
+applications in this book follow. The code provided in the d3dUtil.h, d3dUtil.
+--- Page 191 ---
+DIRECT 3D INITIALIZATION  157
+cpp, d3dApp.h and d3dApp.cpp files, wrap standard initialization code that 
+every application must implement. By wrapping this code up, we hide it, 
+which allows the samples to be more f ocused on demonstrating the current 
+topic.
+13. For debug mode builds, we enable the debug layer (
+debugController-
+>EnableDebugLayer()). When the debug layer is enabled, Direct3D will send 
+debug messages to the VC output window. 
+--- Page 192 ---
+
+--- Page 193 ---
+Chapter
+159
+5Chapter
+THE 
+RENDERING  
+PIPELINE
+The primary theme of this chapter is the rendering pipeline. Given a geometric 
+description of a 3D scene with a positioned and oriented virtual camera, the 
+rendering pipeline refers to the entire sequence of steps necessary to generate a 2D 
+image based on what the virtual camera sees (Figure 5.1). This chapter is mostly 
+theoretical—the next chapter puts the theory into practice as we learn to draw 
+with Direct3D. Before we begin coverage of the rendering pipeline, we have two 
+short stops: First, we discuss some elements of the 3D illusion (i.e., the illusion that 
+we are looking into a 3D world through a flat 2D monitor screen); and second, we 
+explain how colors will be represented and worked with mathematically and in 
+Direct3D code.
+Objectives:
+1. T o discover several key signals used to convey a realistic sense of volume and 
+spatial depth in a 2D image.
+2. T o find out how we represent 3D objects in Direct3D.
+3. T o learn how we model the virtual camera.
+4. T o understand the rendering pipeline—the process of taking a geometric 
+description of a 3D scene and generating a 2D image from it.
+--- Page 194 ---
+160 DIRECT 3D FOUNDATIONS
+5.1 THE 3D ILLUSION
+Before we embark on our journey of 3D computer graphics, a simple question 
+remains outstanding: How do we display a 3D world with depth and volume on a 
+flat 2D monitor screen? Fortunately for us, this problem has been well studied, as 
+artists have been painting 3D scenes on 2D canvases for centuries. In this section, 
+we outline several key techniques that make an image look 3D, even though it is 
+actually drawn on a 2D plane. 
+Suppose that you have encountered a railroad track that doesn’t curve, but goes 
+along a straight line for a long distance. Now the railroad rails remain parallel to 
+each other for all time, but if you stand on the railroad and look down its path, 
+you will observe that the two railroad r ails get closer and closer together as their 
+distance from you increases, and eventually they converge at an inﬁ nite distance. 
+This is one observation that characterizes our human viewing system: parallel 
+lines of vision converge to a vanishing point; see Figure 5.2.
+Figure 5.1. The left image shows a side view of some objects setup in the 3D world with a camera 
+positioned and aimed; the middle image shows the same scene, but from a top-down view. The “pyramid” 
+volume specifies the volume of space that the viewer can see; objects (and parts of objects) outside this 
+volume are not seen. The image on the right shows the 2D image created based on what the camera “sees.”
+Figure 5.2. Parallel lines of vision converge to a vanishing point. Artists sometimes call this linear perspective.
+--- Page 195 ---
+THE RENDERING  PIPELINE  161
+Another simple observation of how humans see things is that the size of an 
+object appears to diminish with depth; that is, objects near us look bigger than 
+objects far away. For example, a house far away on a hill will look very small, while 
+a tree near us will look very large in comparison. Figure 5.3 shows a simple scene 
+where parallel rows of columns are placed behind each other, one after another. 
+The columns are actually all the same size, but as their depths increase from the 
+viewer, they get smaller and smaller. Also notice how the columns are converging 
+to the vanishing point at the horizon.
+We all experience object overlap (Figure 5.4), which refers to the fact that 
+opaque objects obscure parts (or all) of the objects behind them. This is an 
+important perception, as it conveys the depth ordering relationship of the objects 
+in the scene. We already discussed (Chapter 4) how Direct3D uses a depth buffer 
+to ﬁ gure out which pixels are being obscured and thus should not be drawn. 
+Consider Figure 5.5. On the left we have an unlit sphere, and on the right, we 
+have a lit sphere. As you can see, the sphere on the left looks rather ﬂ at—maybe it 
+Figure 5.3. Here, all the columns are of the same size, 
+but a viewer observes a diminishing in size with respect 
+to depth phenomenon.
+Figure 5.4. A group of objects that partially 
+obscure each other because one is in front 
+of the other, etc. (they overlap).
+Figure 5.5. (a) An unlit sphere that looks 2D. 
+(b) A lit sphere that looks 3D.
+Figure 5.6. A spaceship and its shadow. The shadow implies 
+the location of the light source in the scene and also gives an 
+idea of how high off the ground the spaceship is.
+--- Page 196 ---
+162 DIRECT 3D FOUNDATIONS
+is not even a sphere at all, but just a textured 2D circle! Thus, lighting and shading 
+play a very important role in depicting the solid form and volume of 3D objects.
+Finally, Figure 5.6 shows a spaceship and its shadow. The shadow serves two key 
+purposes. First, it tells us the origin of the light source in the scene. And secondly, 
+it provides us with a rough idea of how high off the ground the spaceship is.
+The observations just discussed, no doubt, are intuitively obvious from our day-
+to-day experiences. Nonetheless, it is helpful to explicitly state what we know and to 
+keep these observations in mind as we study and work on 3D computer graphics.
+5.2 MODEL REPRESENTATION
+A solid 3D object is represented by a triangle mesh  approximation, and 
+consequently, triangles form the basic building blocks of the objects we model. 
+As Figure 5.7 implies, we can approximate any real-world 3D object by a triangle 
+mesh. In general, the more triangles you use to approximate an object, the better 
+the approximation, as you can model finer details. Of course, the more triangles 
+we use, the more processing power is required, and so a balance must be made 
+based on the hardware power of the application’s target audience. In addition to 
+triangles, it is sometimes useful to draw lines or points. For example, a curve could 
+be graphically drawn by a sequence of short line segments a pixel thick. 
+The large number of triangles used in Figure 5.7 makes one thing clear: It 
+would be extremely cumbersome to manually list the triangles of a 3D model. 
+For all but the simplest models, special 3D applications called 3D modelers are 
+used to generate and manipulate 3D objects.  These modelers allow the user to 
+build complex and realistic meshes in a visual and interactive environment with a 
+rich tool set, thereby making the entire modeling process much easier. Examples 
+of popular modelers used for game development are 3D Studio Max ( http://usa.
+autodesk.com/3ds-max/), LightWave 3D ( https://www.lightwave3d.com/), Maya 
+Figure 5.7. (Left) A car approximated by a triangle mesh. (Right) A skull approximated by a triangle mesh.
+--- Page 197 ---
+THE RENDERING  PIPELINE  163
+(http://usa.autodesk.com/maya/), Softimage|XSI (www.softimage.com), and 
+Blender ( www.blender.org/). (Blender has the advantage for hobbyists of being 
+open source and free.) Nevertheless, for the ﬁ rst part of this book, we will generate 
+our 3D models manually by hand, or via a mathematical formula (the triangle list 
+for cylinders and spheres, for example, can easily be generated with parametric 
+formulas). In the third part of this book, we show how to load and display 3D 
+models exported from 3D modeling programs.
+5.3 BASIC COMPUTER COLOR
+Computer monitors emit a mixture of red, green, and blue light through each 
+pixel. When the light mixture enters the eye and strikes an area of the retina, cone 
+receptor cells are stimulated and neural impulses are sent down the optic nerve 
+toward the brain. The brain interprets the signal and generates a color. As the 
+light mixture varies, the cells are stimulated differently, which in turn generates a 
+different color in the mind. Figure 5.8 shows some examples of mixing red, green, 
+and blue to get different colors; it also shows different intensities of red. By using 
+different intensities for each color component and mixing them together, we can 
+describe all the colors we need to display realistic images. 
+The best way to get comfortable with describing colors by RGB (red, green, 
+blue) values is to use a paint program like Adobe Photoshop, or even the 
+Win32 
+ChooseColor dialog box (Figure 5.9), and experiment with different RGB 
+combinations to see the colors they produce. 
+Figure 5.8. (Top) The mixing of pure red, green, 
+and blue colors to get new colors. (Bottom) 
+Different shades of red found by controlling the 
+intensity of red light.
+Figure 5.9. The ChooseColor dialog box.
+--- Page 198 ---
+164 DIRECT 3D FOUNDATIONS
+A monitor has a maximum intensity of red, green, and blue light it can emit. T o 
+describe the intensities of light, it is useful to use a normalized range from 0 to 1. 
+0 denotes no intensity and 1 denotes the full intensity. Intermediate values denote 
+intermediate intensities. For example, the values (0.25, 0.67, 1.0) mean the light 
+mixture consists of 25% intensity of red light, 67% intensity of green light, and 
+100% intensity of blue light. As the example just stated implies, we can represent a 
+color by a 3D color vector (r, g, b), where 0  r, g, b  1, and each color component 
+describes the intensity of red, green, and blue light in the mixture. 
+5.3.1 Color Operations
+Some vector operations also apply to color vectors. For example, we can add color 
+vectors to get new colors:
+ (0.0, 0.5, 0)  (0, 0.0, 0.25)  (0.0, 0.5, 0.25)
+By combining a medium intensity green color with a low intensity blue color, we 
+get a dark-green color.
+Colors can also be subtracted to get new colors:
+ (1, 1, 1) – (1, 1, 0)  (0, 0, 1)
+That is, we start with white and subtract out the red and green parts, and we end 
+up with blue.
+Scalar multiplication also makes sense. Consider the following:
+ 0.5(1, 1, 1)  (0.5, 0.5, 0.5)
+That is, we start with white and multiply by 0.5, and we end up with a medium 
+shade of gray. On the other hand, the operation 2(0.25, 0, 0)  (0.5, 0, 0) doubles 
+the intensity of the red component.
+Obviously expressions like the dot product and cross product do not make 
+sense for color vectors. However, color vectors do get their own special color 
+operation called modulation or componentwise multiplication. It is deﬁ ned as:
+ 
+( , , ) ( , , ) ( , , )rgb rgb r rg gb bccc kkk c kc kc k
+This operation is mainly used in lighting equations. For example, suppose we have 
+an incoming ray of light with color ( r, g, b) and it strikes a surface which reflects 
+50% red light, 75% green light, and 25% blue light, and absorbs the rest. Then the 
+color of the reflected light ray is given by:
+ 
+( , , ) (0.5, 0.75, 0.25) (0.5 , 0.75 , 0.25 )rgb r g b
+So we can see that the light ray lost some intensity when it struck the surface, since 
+the surface absorbed some of the light. 
+--- Page 199 ---
+THE RENDERING  PIPELINE  165
+When doing color operation, it is possible that your color components go 
+outside the [0, 1] interval; consider the equation, (1, 0.1, 0.6)  (0, 0.3, 0.5)  
+(1, 0.4, 1.1), for example. Since 1.0 represents the maximum intensity of a color 
+component, you cannot become more intense than it. Thus 1.1 is just as intense as 
+1.0. So what we do is clamp 1.1  1.0. Likewise, a monitor cannot emit negative 
+light, so any negative color component (which could result from a subtraction 
+operation) should be clamped to 0.0.
+5.3.2 128-Bit Color
+It is common to incorporate an additional color component, called the alpha 
+component. The alpha component is often used to denote the opacity of a color, 
+which is useful in blending (Chapter 10). (Since we are not using blending yet, just 
+set the alpha component to 1 for now.) Including the alpha component, means 
+we can represent a color by a 4D color vector (r, g, b, a) where 0  r, g, b, a  1. T o 
+represent a color with 128-bits, we use a floating-point value for each component. 
+Because mathematically a color is just a 4D vector, we can use the 
+XMVECTOR type to 
+represent a color in code, and we gain the benefit of SIMD operations whenever 
+we use the DirectXMath vector functions to do color operations (e.g., color 
+addition, subtraction, scalar multiplication). For componentwise multiplication, 
+the DirectX Math library provides the following function:
+XMVECTOR XM_CALLCONV XMColorModulate( // Returns c1  c2 
+  FXMVECTOR C1,
+  FXMVECTOR C2);
+5.3.3 32-Bit Color
+T o represent a color with 32-bits, a byte is given to each component. Since each 
+color is given an 8-bit byte, we can represent 256 different shades for each color 
+component—0 being no intensity, 255 being full intensity, and intermediate 
+values being intermediate intensities. A byte per color component may seem 
+small, but when we look at all the combinations (256  256  256  16, 777, 216), 
+we see millions of distinct colors can be represented. The DirectX Math library 
+(#include <DirectXPackedVector.h> ) provides the following structure, in the 
+DirectX::PackedVector namespace, for storing a 32-bit color:
+namespace DirectX
+{
+namespace PackedVector
+{
+// ARGB Color; 8-8-8-8 bit unsigned normalized integer components packed 
+// into a 32 bit integer. The normalized color is packed into 32 bits 
+// using 8 bit unsigned, normalized integers for the alpha, red, green, 
+// and blue components.
+--- Page 200 ---
+166 DIRECT 3D FOUNDATIONS
+// The alpha component is stored in the most significant bits and the 
+// blue component in the least significant bits (A8R8G8B8):
+// [32] aaaaaaaa rrrrrrrr gggggggg bbbbbbbb [0]
+struct XMCOLOR
+{
+  union
+  {
+    struct
+    {
+      uint8_t b; // Blue:  0/255 to 255/255
+      uint8_t g; // Green:  0/255 to 255/255
+      uint8_t r; // Red:   0/255 to 255/255
+      uint8_t a; // Alpha:  0/255 to 255/255
+    };
+    uint32_t c;
+  };
+  XMCOLOR() {}
+  XMCOLOR(uint32_t Color) : c(Color) {}
+  XMCOLOR(float _r, float _g, float _b, float _a);
+  explicit XMCOLOR(_In_reads_(4) const float *pArray);
+  operator uint32_t () const { return c; }
+  XMCOLOR& operator= (const XMCOLOR& Color) { c = Color.c; return 
+*this; }
+  XMCOLOR& operator= (const uint32_t Color) { c = Color; return *this; 
+}
+};
+} // end PackedVector namespace
+} // end DirectX namespace
+A 32-bit color can be converted to a 128-bit color by mapping the integer range 
+[0, 255] onto the real-valued interval [0, 1]. This is done by dividing by 255. That 
+is, if 0  n  255 is an integer, then 01 255
+n  gives the intensity in the normalized 
+range from 0 to 1. For example, the 32-bit color (80, 140, 200, 255) becomes:
+  80 140 200 25580,1 40, 200, 255 , , , 0.31, 0.55, 0.78,1  .0255 255 255 255
+
+On the other hand, a 128-bit color can be converted to a 32-bit color by multiplying 
+each component by 255 and rounding to the nearest integer. For example:
+     0.3, 0.6,  0.9,1 .0 0.3 255, 0.6 255, 0.9 255,1  .0 255 77, 153, 230,  255  
+Additional bit operations must usually be  done when converting a 32-bit color 
+to a 128-bit color and conversely because the 8-bit color components are usually 
+packed into a 32-bit integer value (e.g., an 
+unsigned int), as it is in XMCOLOR. The 
+--- Page 201 ---
+THE RENDERING  PIPELINE  167
+DirectXMath library defines the following function which takes a XMCOLOR and 
+returns an XMVECTOR from it:
+XMVECTOR XM_CALLCONV PackedVector::XMLoadColor(
+  const XMCOLOR* pSource);
+Figure 5.10 shows how the 8-bit color components are packed into a UINT. Note 
+that this is just one way to pack the color components. Another format might 
+be ABGR or RGBA, instead of ARGB; however, the 
+XMCOLOR class uses the ARGB 
+layout. The DirectX Math library also provides a function to convert an XMVECTOR 
+color to a XMCOLOR:
+void XM_CALLCONV PackedVector::XMStoreColor(
+  XMCOLOR* pDestination, 
+  FXMVECTOR V);
+Typically, 128-bit colors values are used where high precision color operations 
+are needed (e.g., in a pixel shader); in this way, we have many bits of accuracy 
+for the calculations so arithmetic error does not accumulate too much. The final 
+pixel color, however, is usually stored in a 32-bit color value in the back buffer; 
+current physical display devices cannot take advantage of the higher resolution 
+color [V erth04].
+5.4 OVERVIEW OF THE RENDERING PIPELINE
+Given a geometric description of a 3D scene with a positioned and oriented virtual 
+camera, the rendering pipeline refers to the entire sequence of steps necessary to 
+generate a 2D image based on what the virtual camera sees. Figure 5.11 shows 
+a diagram of the stages that make up the rendering pipeline, as well as GPU 
+memory resources off to the side. An arrow going from the resource memory pool 
+to a stage means the stage can access the resources as input; for example, the pixel 
+shader stage may need to read data from a texture resource stored in memory in 
+order to do its work. An arrow going from a stage to memory means the stage 
+writes to GPU resources; for example, the output merger stage writes data to 
+textures such as the back buffer and depth/stencil buffer. Observe that the arrow 
+for the output merger stage is bidirectional (it reads and writes to GPU resources). 
+As we can see, most stages do not write to GPU resources. Instead, their output is 
+just fed in as input to the next stage of the pipeline; for example, the V ertex Shader 
+Figure 5.10. A 32-bit color, where a byte is allocated for each color component alpha, red, green, and blue. 
+--- Page 202 ---
+168 DIRECT 3D FOUNDATIONS
+stage inputs data from the Input Assembler stage, does its own work, and then 
+outputs its results to the Geometry Shader stage. The subsequent sections give an 
+overview of each stage of the rendering pipeline.
+5.5 THE INPUT ASSEMBLER STAGE
+The input assembler (IA) stage reads geometric data (vertices and indices) from 
+memory and uses it to assemble geometric primitives (e.g., triangles, lines). 
+(Indices are covered in a later subsection, but briefly, they define how the vertices 
+should be put together to form the primitives.)
+5.5.1 Vertices
+Mathematically, the vertices of a triangle are where two edges meet; the vertices of 
+a line are the endpoints; for a single point, the point itself is the vertex. Figure 5.12 
+illustrates vertices pictorially. 
+Input Assembler (IA) Stage
+Vertex Shader (VS) Stage
+Geometry Shader (GS) Stage
+Rasterizer (RS) Stage
+Pixel Shader (PS) Stage
+Output Merger (OM) Stage
+GPU Resources: Buffers, Textures
+Stream Output (SO) Stage
+Hull Shader (HS) Stage
+       Tessellator Stage
+Domain Shader (DS) Stage
+Figure 5.11. The stages of the rendering pipeline.

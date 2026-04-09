@@ -1,0 +1,2270 @@
+--- Page 51 ---
+VECTOR ALGEBRA  17
+At this point, the set of vectors {w0, w1, w2} is orthonormal. 
+In the above example, we started with 0
+0 | 0|||
+v
+vw  which means we did not change 
+the direction when going from v0 to w0; we only changed the length. However, the 
+directions of w1 and w2 could be different from v1 and v2, respectively. Depending 
+on the speciﬁ c application, the vector you choose not to change the direction of 
+might be important. For example, later in this book we represent the orientation 
+of the camera with three orthonormal vectors {v
+0, v1, v2} where the third vector v2 
+describes the direction the camera is looking. When orthogonalizing these vectors, 
+we often do not want to change the direction we are looking, and so we will start 
+the above algorithm with v
+2 and modify v0 and v1 to orthogonalize the vectors.
+1.5 POINTS
+So far we have been discussing vectors, which do not describe positions. However, 
+we will also need to specify positions in our 3D programs, for example, the 
+position of 3D geometry and the position of the 3D virtual camera. Relative to 
+a coordinate system, we can use a vector in standard position (Figure 1.16) to 
+represent a 3D position in space; we call this a position vector . In this case, the 
+location of the tip of the vector is the characteristic of interest, not the direction or 
+magnitude. We will use the terms “position vector" and “point" interchangeably 
+since a position vector is enough to identify a point.
+One side effect of using vectors to represent points, especially in code, is that 
+we can do vector operations that do not make sense for points; for instance, 
+geometrically, what should the sum of two points mean? On the other hand, some 
+operations can be extended to points. For example, we deﬁ ne the difference of two 
+points
+ qp to be the vector from p to q. Also, we deﬁ ne a point p plus a vector v to 
+Note:
+ܞ1 
+ܞ2 
+ܟ1 
+ܟ2 
++ܺ 
++ܻ 
++ܼ 
+ܟ0 ܞ0 
+Figure 1.15. 3D orthogonalization with the cross product.
+--- Page 52 ---
+18 MATHEMATICAL  PREREQUISITES
+be the point q obtained by displacing p by the vector v. Conveniently, because we 
+are using vectors to represent points relative to a coordinate system, no extra work 
+needs to be done for the point operations just discussed, as the vector algebra 
+framework already takes care of them; see Figure 1.17.
+Actually there is a geometric meaningful way to deﬁ ne a special sum of points, 
+called an afﬁ ne combination, which is like a weighted average of points.
+1.6 DIRECTX MATH VECTORS
+For Windows 8 and above, DirectX Math is a 3D math library for Direct3D 
+application that is part of the Windows SDK. The library uses the SSE2 (Streaming 
+SIMD Extensions 2) instruction set. With 128-bit wide SIMD (single instruction 
+multiple data) registers, SIMD instructions can operate on four 32-bit
+ floats or 
+ints with one instruction. This is very useful for vector calculations; for example, 
+if you look at vector addition:
+ (, ,)xx yy zzuv uv uv   uv
+Note:
++ܺ 
++ܻ 
++ܼ 
+ݕ 
+ݔ 
+ݖ 
+ܘ(=ݔ ,ݕ ,ݖ ) 
+Figure 1.16. The position vector, which extends from the origin to the point, fully describes where 
+the point is located relative to the coordinate system.  
++ܺ 
++ܻ 
+ܘ 
+ܙ 
+ܘ
+ 
++ܺ 
++ܻ 
+ܘ 
+ܞ 
+ܙ=ܘ +ܞ  
+(ܽ) (ܾ) 
+Figure 1.17. (a) The difference q p between two points is defined as the vector from p to q.  
+(b) A point p plus the vector v is defined to be the point q obtained by displacing p by the vector v.
+--- Page 53 ---
+VECTOR ALGEBRA  19
+we see that we just add corresponding components. By using SIMD, we can do 
+4D vector addition with one SIMD instruction instead of four scalar instructions. 
+If we only required three coordinates for 3D work, we can still use SIMD, but we 
+would just ignore the fourth coordinate; likewise, for 2D we would ignore the 
+third and fourth coordinates. 
+Our coverage of the DirectX Math library is not comprehensive, and we only 
+cover the key parts needed for this book. For all the details, we recommend the 
+online documentation [DirectXMath]. For readers wishing to understand how 
+an SIMD vector library might be developed optimally, and, perhaps, to gain 
+some insight why the DirectX Math library made some of the design decisions 
+that it did, we recommend the article Designing Fast Cross-Platform SIMD Vector 
+Libraries by [Oliveira2010].
+T o use the DirectX Math library, you need to 
+#include <DirectXMath.h>, 
+and for some additional data types #include <DirectXPackedVector.h> . There 
+are no additional library ﬁ  les, as all the code is implemented inline in the 
+header ﬁ le. The DirectXMath.h code lives in the DirectX namespace, and the 
+DirectXPackedV ector.h code lives in the DirectX::PackedVector namespace. 
+In addition, for the x86 platform you should enable SSE2 ( Project Properties 
+> Conﬁ guration Properties > C/C  > Code Generation > Enable Enhanced 
+Instruction Set), and for all platforms you should enable the fast ﬂ  oating point 
+model /fp:fast (Project Properties > Conﬁ guration Properties > C/C  > Code 
+Generation > Floating Point Model ). Y ou do not need to enable SSE2 for the 
+x64 platform because all x64 CPUs su pport SSE2 (http://en.wikipedia.org/wiki/
+SSE2). 
+1.6.1 Vector Types
+In DirectX Math, the core vector type is XMVECTOR, which maps to SIMD hardware 
+registers. This is a 128-bit type that can process four 32-bit floats with a single 
+SIMD instruction. When SSE2 is available, it is defined like so for x86 and x64 
+platforms:
+typedef __m128 XMVECTOR;
+where __m128 is a special SIMD type. When doing calculations, vectors must be 
+of this type to take advantage of SIMD. As already mentioned, we still use this 
+type for 2D and 3D vectors to take advantage of SIMD, but we just zero out the 
+unused components and ignore them. 
+XMVECTOR needs to be 16-byte aligned, and this is done automatically for local 
+and global variables. For class data members, it is recommended to use XMFLOAT2 
+(2D), XMFLOAT3 (3D), and XMFLOAT4 (4D) instead; these structures are deﬁ  ned 
+below:
+--- Page 54 ---
+20 MATHEMATICAL  PREREQUISITES
+struct XMFLOAT2
+{
+  float x;
+  float y;
+  XMFLOAT2() {}
+  XMFLOAT2(float _x, float _y) : x(_x), y(_y) {}
+  explicit XMFLOAT2(_In_reads_(2) const float *pArray) : 
+    x(pArray[0]), y(pArray[1]) {}
+  XMFLOAT2& operator (const XMFLOAT2& Float2) 
+  { x  Float2.x; y  Float2.y; return *this; }
+};
+struct XMFLOAT3
+{
+  float x;
+  float y;
+  float z;
+  XMFLOAT3() {}
+  XMFLOAT3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+  explicit XMFLOAT3(_In_reads_(3) const float *pArray) : 
+    x(pArray[0]), y(pArray[1]), z(pArray[2]) {}
+  XMFLOAT3& operator (const XMFLOAT3& Float3) 
+  { x  Float3.x; y  Float3.y; z  Float3.z; return *this; }
+};
+struct XMFLOAT4
+{
+  float x;
+  float y;
+  float z;
+  float w;
+  XMFLOAT4() {}
+  XMFLOAT4(float _x, float _y, float _z, float _w) : 
+    x(_x), y(_y), z(_z), w(_w) {}
+  explicit XMFLOAT4(_In_reads_(4) const float *pArray) : 
+    x(pArray[0]), y(pArray[1]), z(pArray[2]), w(pArray[3]) {}
+  XMFLOAT4& operator (const XMFLOAT4& Float4) 
+  { x  Float4.x; y  Float4.y; z  Float4.z; w  Float4.w; return 
+*this; }
+};
+However, if we use these types directly for calculations, then we will not take 
+advantage of SIMD. In order to use SIMD, we need to convert instances of 
+these types into the 
+XMVECTOR type. This is done with the DirectX Math loading 
+functions. Conversely, DirectX Math provides storage functions which are used to 
+convert data from XMVECTOR into the XMFLOATn types above.
+--- Page 55 ---
+VECTOR ALGEBRA  21
+T o summarize, 
+1. Use XMVECTOR for local or global variables.
+2. Use XMFLOAT2, XMFLOAT3, and XMFLOAT4 for class data members.
+3. Use loading functions to convert from XMFLOATn to XMVECTOR before doing 
+calculations.
+4. Do calculations with XMVECTOR instances.
+5. Use storage functions to convert from XMVECTOR to XMFLOATn.
+1.6.2 Loading and Storage Methods
+We use the following methods to load data from XMFLOATn into XMVECTOR:
+// Loads XMFLOAT2 into XMVECTOR
+XMVECTOR XM_CALLCONV XMLoadFloat2(const XMFLOAT2 *pSource);
+// Loads XMFLOAT3 into XMVECTOR
+XMVECTOR XM_CALLCONV XMLoadFloat3(const XMFLOAT3 *pSource);
+// Loads XMFLOAT4 into XMVECTOR
+XMVECTOR XM_CALLCONV XMLoadFloat4(const XMFLOAT4 *pSource);
+We use the following methods to store data from XMVECTOR into XMFLOATn:
+// Loads XMVECTOR into XMFLOAT2
+void XM_CALLCONV XMStoreFloat2(XMFLOAT2 *pDestination, FXMVECTOR V);
+// Loads XMVECTOR into XMFLOAT3
+void XM_CALLCONV XMStoreFloat3(XMFLOAT3 *pDestination, FXMVECTOR V);
+// Loads XMVECTOR into XMFLOAT4
+void XM_CALLCONV XMStoreFloat4(XMFLOAT4 *pDestination, FXMVECTOR V);
+Sometimes we just want to get or set one component of an XMVECTOR; the 
+following getter and setter functions facilitate this:
+float XM_CALLCONV XMVectorGetX(FXMVECTOR V);
+float XM_CALLCONV XMVectorGetY(FXMVECTOR V);
+float XM_CALLCONV XMVectorGetZ(FXMVECTOR V);
+float XM_CALLCONV XMVectorGetW(FXMVECTOR V);
+XMVECTOR XM_CALLCONV XMVectorSetX(FXMVECTOR V, float x);
+XMVECTOR XM_CALLCONV XMVectorSetY(FXMVECTOR V, float y);
+XMVECTOR XM_CALLCONV XMVectorSetZ(FXMVECTOR V, float z);
+XMVECTOR XM_CALLCONV XMVectorSetW(FXMVECTOR V, float w);
+1.6.3 Parameter Passing
+For efficiency purposes, XMVECTOR values can be passed as arguments to functions 
+in SSE/SSE2 registers instead of on the stack. The number of arguments that 
+--- Page 56 ---
+22 MATHEMATICAL  PREREQUISITES
+can be passed this way depends on the platform (e.g., 32-bit Windows, 64-bit 
+Windows, and Windows RT) and compiler. Therefore, to be platform/compiler 
+independent, we use the types 
+FXMVECTOR, GXMVECTOR, HXMVECTOR and CXMVECTOR 
+for passing XMVECTOR parameters; these are defined to the right type based on 
+the platform and compiler. Furthermore, the calling convention annotation XM_
+CALLCONV must be specified before the func tion name so that the proper calling 
+convention is used, which again depends on the compiler version. 
+Now the rules for passing XMVECTOR parameters are as follows:
+1. The first three XMVECTOR parameters should be of type FXMVECTOR; 
+2. The fourth XMVECTOR should be of type GXMVECTOR;
+3. The fifth and sixth XMVECTOR parameter should be of type HXMVECTOR;
+4. Any additional XMVECTOR parameters should be of type CXMVECTOR. 
+We illustrate how these types are defined on 32-bit Windows with a compiler 
+that supports the __fastcall calling convention and a compiler that supports the 
+newer __vectorcall calling convention:
+// 32-bit Windows __fastcall passes first 3 XMVECTOR arguments
+// via registers, the remaining on the stack.
+typedef const XMVECTOR FXMVECTOR;
+typedef const XMVECTOR& GXMVECTOR;
+typedef const XMVECTOR& HXMVECTOR;
+typedef const XMVECTOR& CXMVECTOR;
+// 32-bit Windows __vectorcall passes first 6 XMVECTOR arguments
+// via registers, the remaining on the stack.
+typedef const XMVECTOR FXMVECTOR;
+typedef const XMVECTOR GXMVECTOR;
+typedef const XMVECTOR HXMVECTOR;
+typedef const XMVECTOR& CXMVECTOR;
+For the details on how these types are defined for the other platforms, see “Calling 
+Conventions" under “Library Internals" in the DirectX Math documentation 
+[DirectXMath]. The exception to these rules is with constructor methods. 
+[DirectXMath] recommends using 
+FXMVECTOR for the first three XMVECTOR 
+parameters and CXMVECTOR for the rest when writing a constructor that takes 
+XMVECTOR parameters. Furthermore, do not use the annotation XM_CALLCONV for 
+constructors 
+Here is an example from the DirectXMath library:
+inline XMMATRIX XM_CALLCONV XMMatrixTransformation(
+  FXMVECTOR ScalingOrigin, 
+  FXMVECTOR ScalingOrientationQuaternion, .
+  FXMVECTOR Scaling, 
+  GXMVECTOR RotationOrigin, 
+  HXMVECTOR RotationQuaternion, 
+  HXMVECTOR Translation);
+--- Page 57 ---
+VECTOR ALGEBRA  23
+This function takes 6 XMVECTOR parameters, but following the parameter passing 
+rules, it uses FXMVECTOR for the first three parameters, GXMVECTOR for the fourth, and 
+HXMVECTOR for the fifth and sixth.
+Y ou can have non-XMVECTOR parameters between XMVECTOR parameters. The 
+same rules apply and the XMVECTOR parameters are counted as if the non-XMVECTOR 
+parameters were not there. For example, in the following function, the ﬁ rst three 
+XMVECTOR parameters are of type FXMVECTOR as and the fourth XMVECTOR parameter 
+is of type GXMVECTOR.
+inline XMMATRIX XM_CALLCONV XMMatrixTransformation2D(
+  FXMVECTOR ScalingOrigin, 
+  float   ScalingOrientation, 
+  FXMVECTOR Scaling, 
+  FXMVECTOR RotationOrigin, 
+  float   Rotation, 
+  GXMVECTOR Translation);
+The rules for passing XMVECTOR parameters apply to “input" parameters. “Output" 
+XMVECTOR parameters (XMVECTOR& or XMVECTOR*) will not use the SSE/SSE2 registers 
+and so will be treated like non-XMVECTOR parameters.
+1.6.4 Constant Vectors
+Constant XMVECTOR instances should use the XMVECTORF32 type. Here are some 
+examples from the DirectX SDK’s CascadedShadowMaps11 sample:
+static const XMVECTORF32 g_vHalfVector  { 0.5f, 0.5f, 0.5f, 0.5f };
+static const XMVECTORF32 g_vZero  { 0.0f, 0.0f, 0.0f, 0.0f };
+XMVECTORF32 vRightTop  {
+vViewFrust.RightSlope,
+vViewFrust.TopSlope,
+1.0f,1.0f
+};
+XMVECTORF32 vLeftBottom  {
+vViewFrust.LeftSlope,
+vViewFrust.BottomSlope,
+1.0f,1.0f
+};
+Essentially, we use XMVECTORF32 whenever we want to use initialization syntax.
+XMVECTORF32 is a 16-byte aligned structure with a XMVECTOR conversion operator; 
+it is deﬁ ned as follows:
+// Conversion types for constants
+__declspec(align(16)) struct XMVECTORF32
+{
+  union
+--- Page 58 ---
+24 MATHEMATICAL  PREREQUISITES
+  {
+    float f[4];
+    XMVECTOR v;
+  };
+  inline operator XMVECTOR() const { return v; }
+  inline operator const float*() const { return f; }
+#if !defined(_XM_NO_INTRINSICS_) && defined(_XM_SSE_INTRINSICS_)
+  inline operator __m128i() const { return _mm_castps_si128(v); }
+  inline operator __m128d() const { return _mm_castps_pd(v); }
+#endif
+};
+Y ou can also create a constant XMVECTOR of integer data using XMVECTORU32:
+static const XMVECTORU32 vGrabY  {
+0x00000000,0xFFFFFFFF,0x00000000,0x00000000
+};
+1.6.5 Overloaded Operators
+The XMVECTOR has several overloaded operat ors for doing vector addition, 
+subtraction, and scalar multiplication. 
+XMVECTOR  XM_CALLCONV   operator (FXMVECTOR V);
+XMVECTOR  XM_CALLCONV   operator- (FXMVECTOR V);
+XMVECTOR&  XM_CALLCONV   operator (XMVECTOR& V1, FXMVECTOR V2);
+XMVECTOR&  XM_CALLCONV   operator- (XMVECTOR& V1, FXMVECTOR V2);
+XMVECTOR&  XM_CALLCONV   operator* (XMVECTOR& V1, FXMVECTOR V2);
+XMVECTOR&  XM_CALLCONV   operator/ (XMVECTOR& V1, FXMVECTOR V2);
+XMVECTOR&  operator* (XMVECTOR& V, float S);
+XMVECTOR&  operator/ (XMVECTOR& V, float S);
+XMVECTOR  XM_CALLCONV   operator (FXMVECTOR V1, FXMVECTOR V2);
+XMVECTOR  XM_CALLCONV   operator- (FXMVECTOR V1, FXMVECTOR V2);
+XMVECTOR  XM_CALLCONV   operator* (FXMVECTOR V1, FXMVECTOR V2);
+XMVECTOR  XM_CALLCONV   operator/ (FXMVECTOR V1, FXMVECTOR V2);
+XMVECTOR  XM_CALLCONV   operator* (FXMVECTOR V, float S);
+XMVECTOR  XM_CALLCONV   operator* (float S, FXMVECTOR V);
+XMVECTOR  XM_CALLCONV   operator/ (FXMVECTOR V, float S);
+1.6.6 Miscellaneous
+The DirectX Math library defined the following constants useful for approximating 
+different expressions involving :
+const float XM_PI       3.141592654f;
+const float XM_2PI      6.283185307f;
+const float XM_1DIVPI     0.318309886f;
+const float XM_1DIV2PI    0.159154943f;
+--- Page 59 ---
+VECTOR ALGEBRA  25
+const float XM_PIDIV2     1.570796327f;
+const float XM_PIDIV4     0.785398163f;
+In addition, it defines the following inline functions for converting between 
+radians and degrees:
+inline float XMConvertToRadians(float fDegrees) 
+{ return fDegrees * (XM_PI / 180.0f); }
+inline float XMConvertToDegrees(float fRadians) 
+{ return fRadians * (180.0f / XM_PI); }
+It also deﬁ nes min/max functions:
+template<class T> inline T XMMin(T a, T b) { return (a < b) ? a : b; }
+template<class T> inline T XMMax(T a, T b) { return (a > b) ? a : b; }
+1.6.7 Setter Functions
+DirectX Math provides the following functions to set the contents of an XMVECTOR:
+// Returns the zero vector 0
+XMVECTOR XM_CALLCONV XMVectorZero();
+// Returns the vector (1, 1, 1, 1)
+XMVECTOR XM_CALLCONV XMVectorSplatOne();
+// Returns the vector (x, y, z, w)
+XMVECTOR XM_CALLCONV XMVectorSet(float x, float y, float z, float w);
+// Returns the vector (s, s, s, s)
+XMVECTOR XM_CALLCONV XMVectorReplicate(float Value);
+// Returns the vector (vx, vx, vx, vx) 
+XMVECTOR XM_CALLCONV XMVectorSplatX(FXMVECTOR V);
+// Returns the vector (vy, vy, vy, vy) 
+XMVECTOR XM_CALLCONV XMVectorSplatY(FXMVECTOR V);
+// Returns the vector (vz, vz, vz, vz) 
+XMVECTOR XM_CALLCONV XMVectorSplatZ(FXMVECTOR V);
+The following program illustrates most of these functions:
+#include <windows.h> // for XMVerifyCPUSupport
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <iostream>
+using namespace std;
+using namespace DirectX;
+using namespace DirectX::PackedVector;
+// Overload the "<<" operators so that we can use cout to 
+// output XMVECTOR objects.
+--- Page 60 ---
+26 MATHEMATICAL  PREREQUISITES
+ostream& XM_CALLCONV operator<<(ostream& os, FXMVECTOR v)
+{
+  XMFLOAT3 dest;
+  XMStoreFloat3(&dest, v);
+  os << "(" << dest.x << ", " << dest.y << ", " << dest.z << ")";
+  return os;
+}
+int main()
+{
+  cout.setf(ios_base::boolalpha);
+  // Check support for SSE2 (Pentium4, AMD K8, and above).
+  if (!XMVerifyCPUSupport())
+  {
+    cout << "directx math not supported" << endl;
+    return 0;
+  }
+  XMVECTOR p  XMVectorZero();
+  XMVECTOR q  XMVectorSplatOne();
+  XMVECTOR u  XMVectorSet(1.0f, 2.0f, 3.0f, 0.0f);
+  XMVECTOR v  XMVectorReplicate(-2.0f);
+  XMVECTOR w  XMVectorSplatZ(u);
+  cout << "p  " << p << endl;
+  cout << "q  " << q << endl;
+  cout << "u  " << u << endl;
+  cout << "v  " << v << endl;
+  cout << "w  " << w << endl;
+  return 0;
+}
+Figure 1.18. Output for the above program.
+1.6.8 Vector Functions
+DirectX Math provides the following functions to do various vector operations. 
+We illustrate with the 3D versions, but there are analogous versions for 2D and 
+4D; the 2D and 4D versions have the same names as the 3D versions, with the 
+exception of a 2 and 4 substituted for the 3, respectively. 
+XMVECTOR XM_CALLCONV XMVector3Length( // Returns ||v||
+  FXMVECTOR V); // Input v
+--- Page 61 ---
+VECTOR ALGEBRA  27
+XMVECTOR XM_CALLCONV XMVector3LengthSq( // Returns ||v||2
+  FXMVECTOR V); // Input v 
+XMVECTOR XM_CALLCONV XMVector3Dot( // Returns v1v2
+  FXMVECTOR V1,  // Input v1
+  FXMVECTOR V2); // Input v2
+XMVECTOR XM_CALLCONV XMVector3Cross( // Returns  v1 × v2
+  FXMVECTOR V1,  // Input v1
+  FXMVECTOR V2); // Input v2
+XMVECTOR XM_CALLCONV XMVector3Normalize( // Returns v/||v||
+  FXMVECTOR V); // Input v
+XMVECTOR XM_CALLCONV XMVector3Orthogonal( // Returns a vector orthogonal to v
+  FXMVECTOR V); // Input v
+XMVECTOR XM_CALLCONV
+XMVector3AngleBetweenVectors( // Returns the angle between v1 and v2
+  FXMVECTOR V1,  // Input v1
+  FXMVECTOR V2); // Input v2
+void XM_CALLCONV XMVector3ComponentsFromNormal(
+  XMVECTOR* pParallel,  // Returns projn(v)
+  XMVECTOR* pPerpendicular,  // Returns perpn(v)
+  FXMVECTOR V,  // Input v
+  FXMVECTOR Normal); // Input n
+bool XM_CALLCONV XMVector3Equal( // Returns v1  v2
+  FXMVECTOR V1,  // Input v1
+  FXMVECTOR V2); // Input v2
+bool XM_CALLCONV XMVector3NotEqual( // Returns v1  v2
+  FXMVECTOR V1,  // Input v1
+  FXMVECTOR V2); // Input v2
+Observe that these functions return XMVECTORs even for operations that 
+mathematically return a scalar (for example, the dot product k  v1  v2). The 
+scalar result is replicated in each component of the XMVECTOR. For example, for the 
+dot product, the returned vector would be (v1  v2, v1  v2,v1  v2,v1  v2). One reason 
+for this is to minimize mixing of scalar and SIMD vector operations; it is more 
+efﬁ cient to keep everything SIMD until you are done with your calculations. 
+The following demo program shows how to use most of these functions, as well as 
+some of the overloaded operators:
+#include <windows.h> // for XMVerifyCPUSupport
+Note:
+--- Page 62 ---
+28 MATHEMATICAL  PREREQUISITES
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <iostream>
+using namespace std;
+using namespace DirectX;
+using namespace DirectX::PackedVector;
+// Overload the "<<" operators so that we can use cout to 
+// output XMVECTOR objects.
+ostream& XM_CALLCONV operator<<(ostream& os, FXMVECTOR v)
+{
+  XMFLOAT3 dest;
+  XMStoreFloat3(&dest, v);
+  os << "(" << dest.x << ", " << dest.y << ", " << dest.z << ")";
+  return os;
+}
+int main()
+{
+  cout.setf(ios_base::boolalpha);
+  // Check support for SSE2 (Pentium4, AMD K8, and above).
+  if (!XMVerifyCPUSupport())
+  {
+    cout << "directx math not supported" << endl;
+    return 0;
+  }
+  XMVECTOR n  XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+  XMVECTOR u  XMVectorSet(1.0f, 2.0f, 3.0f, 0.0f);
+  XMVECTOR v  XMVectorSet(-2.0f, 1.0f, -3.0f, 0.0f);
+  XMVECTOR w  XMVectorSet(0.707f, 0.707f, 0.0f, 0.0f);
+  // Vector addition: XMVECTOR operator  
+  XMVECTOR a  u  v;
+  // Vector subtraction: XMVECTOR operator - 
+  XMVECTOR b  u - v;
+  // Scalar multiplication: XMVECTOR operator * 
+  XMVECTOR c  10.0f*u;
+  // ||u||
+  XMVECTOR L  XMVector3Length(u);
+  // d  u / ||u||
+  XMVECTOR d  XMVector3Normalize(u);
+  // s  u dot v
+  XMVECTOR s  XMVector3Dot(u, v);
+  // e  u x v
+  XMVECTOR e  XMVector3Cross(u, v);
+--- Page 63 ---
+VECTOR ALGEBRA  29
+  // Find proj_n(w) and perp_n(w)
+  XMVECTOR projW;
+  XMVECTOR perpW;
+  XMVector3ComponentsFromNormal(&projW, &perpW, w, n);
+  // Does projW  perpW  w?
+  bool equal  XMVector3Equal(projW  perpW, w) ! 0;
+  bool notEqual  XMVector3NotEqual(projW  perpW, w) ! 0;
+  // The angle between projW and perpW should be 90 degrees.
+  XMVECTOR angleVec  XMVector3AngleBetweenVectors(projW, perpW);
+  float angleRadians  XMVectorGetX(angleVec);
+  float angleDegrees  XMConvertToDegrees(angleRadians);
+  cout << "u           " << u << endl;
+  cout << "v           " << v << endl;
+  cout << "w           " << w << endl;
+  cout << "n           " << n << endl;
+  cout << "a  u  v       " << a << endl;
+  cout << "b  u - v       " << b << endl;
+  cout << "c  10 * u      " << c << endl;
+  cout << "d  u / ||u||     " << d << endl;
+  cout << "e  u x v       " << e << endl;
+  cout << "L  ||u||      " << L << endl;
+  cout << "s  u.v        " << s << endl;
+  cout << "projW         " << projW << endl;
+  cout << "perpW         " << perpW << endl;
+  cout << "projW  perpW  w  " << equal << endl;
+  cout << "projW  perpW ! w  " << notEqual << endl;
+  cout << "angle        
+ " << angleDegrees << endl;
+  return 0;
+}
+Figure 1.19. Output for the above program.
+--- Page 64 ---
+30 MATHEMATICAL  PREREQUISITES
+The DirectX Math library also includes some estimation methods, which are 
+less accurate but faster to compute. If you are willing to sacriﬁ ce some accuracy 
+for speed, then use the estimate methods. Here are two examples of estimate 
+functions:
+XMVECTOR XM_CALLCONV XMVector3LengthEst( // Returns estimated ||v||
+  FXMVECTOR V);    // Input v
+XMVECTOR XM_CALLCONV XMVector3NormalizeEst( // Returns estimated v/||v||
+  FXMVECTOR V);    // Input v
+1.6.9 Floating-Point Error
+While on the subject of working with vectors on a computer, we should be 
+aware of the following. When comparing floating-point numbers, care must 
+be taken due to floating-point imprecision. Two floating-point numbers that 
+we expect to be equal may differ slightly. For example, mathematically, we’d 
+expect a normalized vector to have a length of 1, but in a computer program, 
+the length will only be approximately 1. Moreover, mathematically, 1
+p  1 for 
+any real number p, but when we only have a numerical approximation for 1, 
+we see that the approximation raised to the  pth power increases the error; thus, 
+numerical error also accumulates. The following short program illustrates these 
+ideas:
+#include <windows.h> // for XMVerifyCPUSupport
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <iostream>
+using namespace std;
+using namespace DirectX;
+using namespace DirectX::PackedVector;
+int main()
+{
+  cout.precision(8);
+  // Check support for SSE2 (Pentium4, AMD K8, and above).
+  if (!XMVerifyCPUSupport())
+  {
+    cout << "directx math not supported" << endl;
+    return 0;
+  }
+  XMVECTOR u  XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f);
+  XMVECTOR n  XMVector3Normalize(u);
+  float LU  XMVectorGetX(XMVector3Length(n));
+  // Mathematically, the length should be 1. Is it numerically?
+Note:
+--- Page 65 ---
+VECTOR ALGEBRA  31
+  cout << LU << endl;
+  if (LU  1.0f)
+    cout << "Length 1" << endl;
+  else
+    cout << "Length not 1" << endl;
+  // Raising 1 to any power should still be 1. Is it?
+  float powLU  powf(LU, 1.0e6f);
+  cout << "LU^(10^6)  " << powLU << endl;
+}
+Figure 1.20. Output for the above program.
+T o compensate for ﬂ oating-point imprecision, we test if two ﬂ  oating-point 
+numbers are approximately equal. We do this by deﬁ  ning an Epsilon constant, 
+which is a very small value we use as a “buffer." We say two values are approximately 
+equal if their distance is less than 
+Epsilon. In other words, Epsilon gives us some 
+tolerance for ﬂ oating-point imprecision. The following function illustrates how 
+Epsilon can be used to test if two ﬂ oating-point values are equal:
+const float Epsilon  0.001f;
+bool Equals(float lhs, float rhs)
+{
+   // Is the distance between lhs and rhs less than EPSILON?
+ return fabs(lhs - rhs) < Epsilon ? true : false;
+} 
+The DirectX Math library provides the XMVector3NearEqual function when 
+testing the equality of vectors with an allowed tolerance Epsilon parameter:
+// Returns 
+//  abs(U.x – V.x) < Epsilon.x && 
+//  abs(U.y – V.y) < Epsilon.y &&
+//  abs(U.z – V.z) < Epsilon.z
+XMFINLINE bool XM_CALLCONV XMVector3NearEqual(
+  FXMVECTOR U, 
+  FXMVECTOR V, 
+  FXMVECTOR Epsilon);
+1.7 SUMMARY
+1. V ectors are used to model physical quantities that possess both magnitude and 
+direction. Geometrically, we represent a vector with a directed line segment. 
+--- Page 66 ---
+32 MATHEMATICAL  PREREQUISITES
+A vector is in standard position when it is translated parallel to itself so that 
+its tail coincides with the origin of the coordinate system. A vector in standard 
+position can be described numerical ly by specifying the coordinates of its 
+head relative to a coordinate system.
+2. If u  (u
+x, uy, uz) and v  (vx, vy, vz), then we have the following vector operations:
+(a) Addition:  u  v  (ux  vx,  uy  vy, uz  vz) 
+(b) Subtraction: u − v  (ux − vx, uy − vy, uz − vz) 
+(c) Scalar Multiplication: ku  (kux, kuy, kuz)
+(d) Length: || 22 2|| xyz u
+(e) Normalization: ˆ ,,|| || || || || || || ||
+yxz 
+
+uu u uuu
+(f) Dot Product: || |||| || cos xx yy zzuv uv uv    uv u v
+(g) Cross Product: (,  ,  )yz zy zx xz xy yxuv uv uv uv uv uv   uv
+3. We use the DirectX Math XMVECTOR type to describe vectors efficiently in 
+code using SIMD operations. For class data members, we use the  XMFLOAT2, 
+XMFLOAT3, and XMFLOAT4 classes, and then use the loading and storage methods 
+to convert back and forth between XMVECTOR and XMFLOATn. Constant vectors 
+that require initialization syntax should use the XMVECTORF32 type.
+4. For efficiency purposes, XMVECTOR values can be passed as arguments to 
+functions in SSE/SSE2 registers instead of on the stack. T o do this in a 
+platform independent way, we use the types 
+FXMVECTOR, GXMVECTOR, HXMVECTOR 
+and CXMVECTOR for passing XMVECTOR parameters. Then the rule for passing 
+XMVECTOR parameters is that the first three XMVECTOR parameters should be of 
+type FXMVECTOR; the fourth XMVECTOR should be of type GXMVECTOR; the fifth and 
+sixth XMVECTOR parameter should be of type HXMVECTOR; and any additional 
+XMVECTOR parameters should be of type CXMVECTOR.
+5. The XMVECTOR class overloads the arithmetic operat ors to do vector addition, 
+subtraction, and scalar multiplication. Moreover, the DirectX Math library 
+provides the following useful functions for computing the length of a vector, 
+the squared length of a vector, computing the dot product of two vectors, 
+computing the cross product of two vectors, and normalizing a vector:
+  XMVECTOR XM_CALLCONV XMVector3Length(FXMVECTOR V);
+  XMVECTOR XM_CALLCONV XMVector3LengthSq(FXMVECTOR V);
+  XMVECTOR XM_CALLCONV XMVector3Dot(FXMVECTOR V1, FXMVECTOR V2);
+  XMVECTOR XM_CALLCONV XMVector3Cross(FXMVECTOR V1, FXMVECTOR V2);
+  XMVECTOR XM_CALLCONV XMVector3Normalize(FXMVECTOR V);
+--- Page 67 ---
+VECTOR ALGEBRA  33
+1.8 EXERCISES
+1. Let u  (1, 2) and v  (3, −4). Perform the following computations and draw 
+the vectors relative to a 2D coordinate system.
+(a) u  v
+(b) u − v
+(c) 1
+22 uv
+(d) 2u  v
+2. Let u  (1, 3, 2) and v  (3, 4, 1). Perform the following computations.
+(a) u  v
+(b) u − v
+(c) 3 u  2v
+(d) 2u  v
+3. This exercise shows that vector algebra shares many of the nice properties 
+of real numbers (this is not an exhaustive list). Assume u  ( ux, uy, uz), 
+v  (vx, vy, vz), and w  (wx, wy, wz). Also assume that c and k are scalars. Prove 
+the following vector properties.
+(a) u  v  v  u (Commutative Property of Addition)
+(b) u  (v  w)  (u  v)  w (Associative Property of Addition)
+(c) ( ck)u  c(ku) (Associative Property of Scalar Multiplication)
+(d) k(u  v)  ku  kv (Distributive Property 1)
+(e) u(k  c)  ku  cu (Distributive Property 2) 
+Just use the deﬁ nition of the vector operations and the properties of real numbers. 
+For example,
+ (ck)u  (ck)(ux, uy, uz)
+  ((ck)ux, (ck)uy, (ck)uz)
+  (c(kux), c(kuy), c(kuz))
+  c(kux, kuy, kuz)
+  c(ku)
+4. Solve the equation 2((1,  2,  3) – x) − (2, 0, 4)  2(1, 2, 3) for x.
+5. Let u  (1, 3, 2) and v  (3, −4, 1) . Normalize u and v.
+6. Let k be a scalar and let u  (ux, uy, uz). Prove that ||ku||  |k|||u||.
+7. Is the angle between u and v orthogonal, acute, or obtuse?
+(a) u  (1, 1, 1), v  (2, 3, 4)
+(b) u  (1, 1, 0), v  (2, 2, 0)
+Hint: 
+--- Page 68 ---
+34 MATHEMATICAL  PREREQUISITES
+(c) u  (1, 1, 1), v  (3, 1, 0)
+8. Let u  (1, 3, 2) and v  (3, −4, 1). Find the angle  between u and v.
+9. Let u  (ux, uy, uz), v  (vx, vy, vz), and w  (wx, wy, wz). Also let c and k be 
+scalars. Prove the following dot product properties.
+(a) u  v  v  u
+(b) u(v  w)  u  v  u  w
+(c) k(u  v)  (ku)  v  u  (kv)
+(d) vv  ||v||2
+(e) 0  v  0
+Just use the deﬁ nitions, for example,
+ 
+222
+2
+2
+222
+|| ||
+xx yy zz
+xyz
+xyz
+vv vv vv
+vvv
+vvv
+  
+
+
+ 
+vv
+v
+10. Use the law of cosines (c2  a2  b2 – 2abcos), where a, b, and c are the lengths 
+of the sides of a triangle and  is the angle between sides a and b) to show 
+ || || || || cosxx yy zzuv uv uv  uv
+Consider Figure 1.9 and set c2  ||u − v||, a2  ||u||2 and b2  ||v||2, and use the dot 
+product properties from the previous exercise.
+11. Let n  ( 2, 1). Decompose the vector g  (0, −9.8) into the sum of two 
+orthogonal vectors, one parallel to n and the other orthogonal to n. Also, draw 
+the vectors relative to a 2D coordinate system.
+12. Let u  (2, 1, 4) and v  (3, −4, 1). Find w  u × v, and show w u  0 and 
+w v  0.
+13. Let the following points define a triangle relative to some coordinate system:  
+A  (0, 0, 0), B  (0, 1, 3), and C  (5, 1, 0). Find a vector orthogonal to this 
+triangle. 
+Find two vectors on two of the triangle’s edges and use the cross product.
+14. Prove that || || || |||| || sin uv u v . 
+Hint: 
+Hint: 
+Hint: 
+--- Page 69 ---
+VECTOR ALGEBRA  35
+Start with || |||| || sin ||uv  and use the trigonometric identity 
+22 2cos sin 1 sin 1 cos ,       then apply Equation 1.4.
+15. Prove that || ||uv  gives the area of the parallelogram spanned by u and v; see 
+Figure 1.21.
+ܝ 
+ܞ ߠ 
+݄ 
+Figure 1.21. Parallelogram spanned by two 3D vectors u and v; the parallelogram has base || v || and 
+height h
+16. Give an example of 3D vectors u, v, and w such that    .  uv w u vw
+This shows the cross product is generally not associative. 
+Consider combinations of the simple vectors i  (1, 0, 0) , j  (0, 1, 0) , and  
+k  (0, 0, 1).
+17. Prove that the cross product of two nonzero parallel vectors results in the null 
+vector; that is, u × ku  0. 
+Just use the cross product deﬁ nition.
+18. Orthonormalize the set of vectors {(1, 0, 0), (1, 5, 0), (2, 1, −4)} using the 
+Gram-Schmidt process.
+19. Consider the following program and output. Make a conjecture of what each 
+XMVector* function does; then look up ea ch function in the DirectXMath 
+documentation.
+#include <windows.h> // for XMVerifyCPUSupport
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <iostream>
+using namespace std;
+using namespace DirectX;
+using namespace DirectX::PackedVector;
+// Overload the "<<" operators so that we can use cout to 
+// output XMVECTOR objects.
+ostream& XM_CALLCONV operator<<(ostream& os, FXMVECTOR v)
+{
+  XMFLOAT4 dest;
+Hint: 
+Hint: 
+Hint: 
+--- Page 70 ---
+36 MATHEMATICAL  PREREQUISITES
+  XMStoreFloat4(&dest, v);
+  os << "(" << dest.x << ", " << dest.y << ", " 
+       << dest.z << ", " << dest.w << ")";
+  return os;
+}
+int main()
+{
+  cout.setf(ios_base::boolalpha);
+  // Check support for SSE2 (Pentium4, AMD K8, and above).
+  if (!XMVerifyCPUSupport())
+  {
+    cout << "directx math not supported" << endl;
+    return 0;
+  }
+  XMVECTOR p  XMVectorSet(2.0f, 2.0f, 1.0f, 0.0f);
+  XMVECTOR q  XMVectorSet(2.0f, -0.5f, 0.5f, 0.1f);
+  XMVECTOR u  XMVectorSet(1.0f, 2.0f, 4.0f, 8.0f);
+  XMVECTOR v  XMVectorSet(-2.0f, 1.0f, -3.0f, 2.5f);
+  XMVECTOR w  XMVectorSet(0.0f, XM_PIDIV4, XM_PIDIV2, XM_PI);
+  cout << "XMVectorAbs(v)          " << XMVectorAbs(v) << endl;
+  cout << "XMVectorCos(w)          " << XMVectorCos(w) << endl;
+  cout << "XMVectorLog(u)          " << XMVectorLog(u) << endl;
+  cout << "XMVectorExp(p)          " << XMVectorExp(p) << endl;
+  cout << "XMVectorPow(u, p)        " << XMVectorPow(u, p) << endl;
+  cout << "XMVectorSqrt(u)         " << XMVectorSqrt(u) << endl;
+  cout << "XMVectorSwizzle(u, 2, 2, 1, 3)  "
+     << XMVectorSwizzle(u, 2, 2, 1, 3) << endl;
+  cout << "XMVectorSwizzle(u, 2, 1, 0, 3)  "
+     << XMVectorSwizzle(u, 2, 1, 0, 3) << endl;
+  cout << "XMVectorMultiply(u, v)      " << XMVectorMultiply(u, v) << 
+endl;
+  cout << "XMVectorSaturate(q)       " << XMVectorSaturate(q) << endl;
+  cout << "XMVectorMin(p, v         " << XMVectorMin(p, v) << endl;
+  cout << "XMVectorMax(p, v)        " << XMVectorMax(p, v) << endl;
+  return 0;
+}
+Figur e 1.22. Output for the above program.
+--- Page 71 ---
+Chapter
+37
+2Chapter
+MATRIX 
+ALGEBRA
+In 3D computer graphics, we use matrices to compactly describe geometric 
+transformations such as scaling, rotation, and translation, and also to change the 
+coordinates of a point or vector from one frame to another. This chapter explores 
+the mathematics of matrices.
+Objectives: 
+1. T o obtain an understanding of matrices and the operations defined on them.
+2. T o discover how a vector-matrix multiplication can be viewed as a linear 
+combination.
+3. T o learn what the identity matrix is, and what the transpose, determinant, and 
+inverse of a matrix are. 
+4. T o become familiar with the subset of classes and functions provided by the 
+DirectX Math library used for matrix mathematics. 
+--- Page 72 ---
+38 MATHEMATICAL  PREREQUISITES
+2.1 DEFINITION 
+An m × n matrix M is a rectangular array of real numbers with m rows and n 
+columns. The product of the number of rows and columns gives the dimensions 
+of the matrix. The numbers in a matrix are called elements or entries. We identify 
+a matrix element by specifying the row and column of the element using a double 
+subscript notation M
+ij, where the first subscript identifies the row and the second 
+subscript identifies the column. 
+☞ Example 2.1
+Consider the following matrices: 
+ 
+11 12
+21 22 1 2 3
+31 32
+3.5 0 0 0 1
+010 0 2
+      , ,    00 0 . 5 0 3
+25 2 1
+BB
+BB u u u
+BB
+  
+  
+       
+       
+AB u v
+1. The matrix A is a 4 × 4 matrix; the matrix B is a 3 × 2 matrix; the matrix u is a 
+1 × 3 matrix; and the matrix v is a 4 × 1 matrix.
+2. We identify the element in the fourth row and second column of the matrix A 
+by A42  5. We identify the element in the second row and first column of the 
+matrix B by B21.
+3. The matrices u and v are special matrices in the sense that they contain a 
+single row or column, respectively. We sometimes call these kinds of matrices 
+row vectors or column vectors because they are used to represent a vector in 
+matrix form (e.g., we can freely interchange the vector notations (x, y, z) and 
+[x, y, z]). Observe that for row and column vectors, it is unnecessary to use 
+a double subscript to denote the elements of the matrix—we only need one 
+subscript.
+Occasionally we like to think of the rows of a matrix as vectors. For example, we 
+might write:
+ 
+11 12 13 1,*
+21 22 23 2,*
+31 32 33 3,*
+AAA
+AAA
+AAA
+
+  
+  
+A
+A
+A
+where   1,* 11 12 13 2,* 21 22 23, , , , , ,AAA AAAAA  and 3,* 31 32 33 , , AAAA . In 
+this notation, the first index specifies the row, and we put a ‘*’ in the second index 
+--- Page 73 ---
+MATRIX ALGEBRA  39
+to indicate that we are referring to the entire row vector. Likewise, we like to do the 
+same thing for the columns:
+ 
+11 12 13
+21 22 23 *,1 *,2 *,3
+31 32 33
+AAA
+AAA
+AAA
+
+  
+  
+AAA
+where
+ 
+11 12 13
+*,1 21 *,2 22 *,3 23
+31 32 33
+,   ,   
+AAA
+AAA
+AAA
+  
+    
+    
+AA A
+In this notation, the second index specifies the column, and we put a ‘*’ in the first 
+index to indicate that we are referring to the entire column vector. 
+We now deﬁ ne equality, addition, scalar multiplication, and subtraction on 
+matrices. 
+1. Two matrices are equal if and only if their corresponding elements are equal; 
+as such, two matrices must have the same number of rows and columns in 
+order to be compared. 
+2. We add two matrices by adding their corresponding elements; as such, it only 
+makes sense to add matrices that the same number of rows and columns.
+3. We multiply a scalar and a matrix by multiplying the scalar with every element 
+in the matrix. 
+4. We define subtraction in terms of matrix addition and scalar multiplication. 
+That is, A  B  A  (1·B)  A  (B).
+☞ Example 2.2
+Let
+ 15 62 15 21 3, ,  , 23 5 8 23 63 0
+                
+ABCD
+Then,
+(i)  
+16 5215 62 77
+253 82 3 58 35
+              
+AB
+--- Page 74 ---
+40 MATHEMATICAL  PREREQUISITES
+(ii)  A  C
+(iii) 21 3 6 3 9 3 2 3(1) 3( 3)3 63 0 1 89 0 3( 6) 3(3) 3(0)
+           
+3D
+(iv)  
+
+16 5215 62 53
+253 823 5 8 71 1
+                  
+AB
+Because addition and scalar multiplication is done element-wise, matrices 
+essentially inherit the following addit ion and scalar multiplication properties 
+from real numbers:
+1. A  B  B  A Commutative law of addition
+2. (A  B)  C  A  (B  C) Associative law of addition
+3. r(A  B)  rA  rB Scalar distribution over matrices
+4. (r  s)A  rA  sA Matrix distribution over scalars
+2.2 MATRIX MULTIPLICATION 
+2.2.1 Deﬁ nition
+If A is a m × n matrix and B is a n × p matrix, then the product AB is defined and 
+is a m × p matrix C, where the ijth entry of the product C is given by taking the dot 
+product of the ith row vector in A with the jth column vector in B, that is,
+ ,* *,ij i jC AB  (eq. 2.1)
+So note that in order for the matrix product AB to be defined, we require that 
+the number of columns in A equal the number of rows in B, which is to say, we 
+require that the dimension of the row vectors in  A equal the dimension of the 
+column vectors in B. If these dimensions did not match, then the dot product in 
+Equation 2.1 would not make sense. 
+☞ Example 2.3 
+Let
+ 
+2615    and   1 323 30
+   
+AB
+--- Page 75 ---
+MATRIX ALGEBRA  41
+The product AB is not defined since the row vectors in A have dimension 2 and 
+the column vectors in B have dimension 3. In particular, we cannot take the dot 
+product of the first row vector in A with the first column vector in B because we 
+cannot take the dot product of a 2D vector with a 3D vector.
+☞ Example 2.4
+Let
+ 
+21 015 4    and   0 2 1321 123
+    
+AB
+We first point out that the product AB is defined (and is a 2 × 3 matrix) because 
+the number of columns of A equals the number of rows of B. Applying Equation 
+2.1 yields:
+ 
+        
+       
+21 015 4 02 1321 123
+1, 5, 4 2, 0, 1 1, 5, 4 1, 2, 2 1, 5, 4 0,1  , 3
+3, 2,1 2, 0, 1 3, 2,1  1, 2, 2 3, 2,1  0,1  , 3
+21 97
+51 5
+   
+            
+ 
+AB
+Observe that the product BA is not defined because the number of columns in 
+B does not equal the number of rows in A. This demonstrates that, in general, 
+matrix multiplication is not commutative; that is, AB  BA.
+2.2.2 Vector-Matrix Multiplication
+Consider the following vector-matrix multiplication:
+ 
+ 
+11 12 13
+21 22 23 *,1 *,2 *,3
+31 32 33
+, , , , 
+AAA
+xyz A A A xyz
+AAA
+
+ 
+  
+uA A A A
+--- Page 76 ---
+42 MATHEMATICAL  PREREQUISITES
+Observe that uA evaluates to a 1 × 3 row vector in this case. Now, applying 
+Equation 2.1 gives:
+ *,1 *,2 *,3  u A uA uA uA
+  11 21 31 12 22 32 13 23 33,,xA yA zA xA yA zA xA yA zA     
+     11 12 13 21 22 23 31 32 33, , , , , , xA xA xA yA yA yA zA zA zA 
+    11 12 13 21 22 23 31 32 33, , , , , , x AAA y AAA z AAA
+ 1,* 2,* 3,*xyzAAA
+Thus,
+ 1,* 2,* 3,*xyzuA A A A  (eq. 2.2)
+Equation 2.2 is an example of a linear combination , and it says that the vector-
+matrix product uA is equivalent to a linear combination of the row vectors of 
+the matrix A with scalar coefficients x, y, and z given by the vector u. Note that, 
+although we showed this for a 1 × 3 row vector and a 3 × 3 matrix, the result is 
+true in general. That is, for a l × n row vector u and a n × m matrix A, we have 
+that uA is a linear combination of the row vectors in A with scalar coefficients 
+given by u:
+ 
+
+11 1
+11 1 , * , *
+1
+, , 
+m
+nn n
+nn m
+AA
+uu u u
+AA
+
+   
+
+L
+MO M
+L
+AA  (eq. 2.3)
+ 2.2.3 Associativity 
+Matrix multiplication has some nice algebraic properties. For example, matrix 
+multiplication distributes over addition: A(B  C)  AB  AC)  and (A  B)
+C  AC  BC). In particular, however, we will use the associative law of matrix 
+multiplication from time to time, which allows us to choose the order we multiply 
+matrices:
+ (AB)C  A(BC)
+2.3 THE TRANSPOSE OF A MATRIX 
+The transpose of a matrix is found by interchanging the rows and columns of the 
+matrix. Thus the transpose of an m × n matrix is an n × m matrix. We denote the 
+transpose of a matrix M as MT.
+--- Page 77 ---
+MATRIX ALGEBRA  43
+☞ Example 2.5
+Find the transpose for the following three matrices:
+ 
+1
+21 8 2 ,   ,   36 4 3
+4
+abc
+de f
+ghi
+         
+AB C
+T o reiterate, the transposes are found by interchanging the rows and columns, thus
+ 
+23
+1 6 ,   ,   1 2 3 4
+84
+TT T
+adg
+beh
+cfi
+ 
+    
+   
+AB C
+The transpose has the following useful properties:
+1. (A  B)T = AT  BT
+2. (cA)T  cAT
+3. (AB)T  BTAT
+4. (AT)T  A
+5. (A1)T  (AT)1
+2.4 THE IDENTITY MATRIX 
+There is a special matrix called the identity matrix. The identity matrix is a square 
+matrix that has zeros for all elements except along the main diagonal; the elements 
+along the main diagonal are all ones. 
+For example, below are 2 × 2, 3 × 3 and 4 × 4 identity matrices.
+ 
+100010010 0100,     0 1 0 ,     01 0010 001 0001
+        
+The identity matrix acts as a multiplicative identity; that is, if A is an m × n matrix, 
+B is an n × p matrix, and I is the n × n identity matrix, then
+ AI  A and IB  B
+--- Page 78 ---
+44 MATHEMATICAL  PREREQUISITES
+In other words, multiplying a matrix by the identity matrix does not change the 
+matrix. The identity matrix can be thought of as the number 1 for matrices. In 
+particular, if M is a square matrix, then multiplication with the identity matrix is 
+commutative:
+ MI  IM  M
+☞ Example 2.6
+Let 12
+04
+ 
+M  and let 10
+01
+ 
+I . V erify that MI  IM  M.
+Applying Equation 2.1 yields:
+   
+     
+1 2 1 0 1, 2 (1, 0) 1, 2 0,1 1 2
+0 4 0 1 0,4 1,0 0,4 0,1 0 4
+          
+MI
+and 
+     
+    
+1 0 1 2 1, 0 1, 0 1, 0 2, 4 1 2
+0 1 0 4 0,1 1,0 0,1 2,4 0 4
+          
+IM
+Thus it is true that MI  IM  M.
+☞ Example 2.7
+Let  1, 2u  and let 10
+01
+ 
+I . V erify that uI  u.
+Applying Equation 2.1 yields:
+       
+101, 2 1, 2 1, 0 , 1, 2 0,1 1, 201
+        
+uI
+Note that we cannot take the product Iu because the matrix multiplication is not 
+defined.
+2.5 THE DETERMINANT OF A MATRIX
+The determinant is a special function w hich inputs a square matrix and outputs 
+a real number. The determinant of a square matrix A is commonly denoted 
+by det A. It can be shown that the determinant has a geometric interpretation 
+related to volumes of boxes and that the determinant provides information on 
+--- Page 79 ---
+MATRIX ALGEBRA  45
+how volumes change under linear transformations. In addition, determinants are 
+used to solve systems of linear equations using Cramer’s Rule. However, for our 
+purposes, we are mainly motivated to study the determinant because it gives us an 
+explicit formula for finding the inverse of a matrix (the topic of §2.7). In addition, 
+it can be proved that: A square matrix A is invertible if and only if det A  0. This 
+fact is useful because it gives us a computational tool for determining if a matrix 
+is invertible. Before we can define the determinant, we first introduce the concept 
+of matrix minors.
+2.5.1 Matrix Minors
+Given an n  n matrix A, the minor matrix ijA  is the ( n − 1) × ( n − 1) matrix 
+found by deleting the ith row and jth column of A.
+☞ Example 2.8
+Find the minor matrices 11 22,,AA  and 13A  of the following matrix:
+ 
+11 12 13
+21 22 23
+31 32 33
+AAA
+AAA
+AAA
+
+ 
+
+A
+For 11A  we eliminate the first row and first column to obtain:
+ 
+22 23
+11
+32 33
+AA
+AA
+ 
+A
+For 22A  we eliminate the second row and second column to obtain:
+ 
+11 13
+22
+31 33
+AA
+AA
+ 
+A
+For 13A we eliminate the first row and third column to obtain:
+ 21 22
+13
+31 32
+AA
+AA
+ 
+A
+2.5.2 Deﬁ nition
+The determinant of a matrix is defined recursively; for instance, the determinant 
+of a 4  4 matrix is defined in terms of the determinant of a 3  3 matrix, and 
+the determinant of a 3  3 matrix is defined in terms of the determinant of a 
+2  2 matrix, and the determinant of a 2 × 2 matrix is defined in terms of the 
+--- Page 80 ---
+46 MATHEMATICAL  PREREQUISITES
+determinant of a 1 × 1 matrix (the determinant of a 1 × 1 matrix A  [A11] is 
+trivially defined to be  det [A11]  A11).
+Let A be an n × n matrix. Then for n > 1 we deﬁ ne:
+ 1
+11
+1
+(det 1 d t )e
+n
+j
+jj
+j
+A 
+
+AA  (eq. 2.4)
+Recalling the definition of the minor matrix ijA , for 2 × 2 matrices, this gives the 
+formula:
+  
+11 12
+11 22 12 21 11 22 12 21
+21 22
+det det detAA AA AA A A A AAA
+  
+For 3 × 3 matrices, this gives the formula:
+ 
+11 12 13
+21 22 23
+31 32 33
+22 23 21 23 21 22
+11 12 13
+32 33 31 33 31 32
+det
+det det det
+AAA
+AAA
+AAA
+AA AA AAAAA AA AA AA
+
+
+
+
+ 
+And for 4 × 4 matrices, this gives the formula:
+ 
+11 12 13 14
+22 23 24 21 23 24
+21 22 23 24
+11 32 33 34 12 31 33 34
+31 32 33 34
+42 43 44 41 43 44
+41 42 43 44
+21 22 24
+13 31 32 34 14
+41 42 44
+det det det
+det d
+AAAA AAA AAAAAAA A AAA A AAAAAAA AAA AAAAAAA
+AAA
+AA A A A
+AAA
+           
+
+ 
+
+21 22 23
+31 32 33
+41 42 43
+et
+AAA
+AAA
+AAA
+
+
+
+
+In 3D graphics, we primarily work with 4 × 4 matrices, and so we do not need to 
+continue generating explicit formulas for n > 4.
+☞ Example 2.9
+Find the determinant of the matrix 
+ 
+25 3
+13 4
+237
+
+ 
+
+A
+--- Page 81 ---
+MATRIX ALGEBRA  47
+We have that:
+ 22 23 21 23 21 22
+11 12 13
+32 33 31 33 31 32
+det det det det AA AA AAAAA AA AA AA
+ 
+A
+ 
+34 1 4 1 3det 2det 5 det 3det37 27 23
+                
+A
+     237 43 51 7 4 2 313 3 2       
+    29 51 5 39 
+ 18 75 27
+ 120
+2.6 THE ADJOINT OF A MATRIX
+Let A be an n × n matrix. The product  1d e t
+ij
+ij ijC
+
+ A  is called the cofactor of 
+Aij. If we compute Cij and place it in the ijth position of a corresponding matrix CA 
+for every element in A, we obtain the cofactor matrix of A:
+ 
+11 12 1
+21 22 2
+12
+n
+n
+nn n n
+CC C
+CC C
+CC C
+
+
+ 
+
+
+A
+L
+L
+MM O M
+L
+C
+If we take the transpose of CA we get a matrix that is called adjoint of A, which we 
+denote by 
+ * T AAC  (eq. 2.5)
+In the next section, we learn that the adjoint enables us to find an explicit formula 
+for computing matrix inverses.
+2.7 THE INVERSE OF A MATRIX 
+Matrix algebra does not define a division operation, but it does define a 
+multiplicative inverse operation. The following list summarizes the important 
+information about inverses:
+1. Only square matrices have inverses; therefore, when we speak of matrix 
+inverses, we assume we are dealing with a square matrix.
+--- Page 82 ---
+48 MATHEMATICAL  PREREQUISITES
+2. The inverse of an n × n matrix M is an n × n matrix denoted by M1.
+3. Not every square matrix has an inverse. A matrix that does have an inverse is 
+said to be invertible, and a matrix that does not have an inverse is said to be 
+singular.
+4. The inverse is unique when it exists.
+5. Multiplying a matrix with its inverse results in the identity matrix: MM1  
+M1M  I. Note that multiplying a matrix with its own inverse is a case when 
+matrix multiplication is commutative. 
+Matrix inverses are useful when solving for other matrices in a matrix equation. 
+For example, suppose that we are given the matrix equation p  pM. Further 
+suppose that we are given p and M, and want to solve for p. Assuming that M is 
+invertible (i.e., M1 exists), we can solve for p like so:
+p  pM 
+pM1  pMM1 Multiplying both sides of the equation by M1 
+pM1  pI MM 1  I, by definition of inverse.
+pM1  pp I   p, by definition of the identity matrix.
+A formula for finding inverses, which we do not prove here but should be proved 
+in any college level linear algebra text, can be given in terms of the adjoint and 
+determinant:
+ 
+*
+1
+det
+  AA A
+ (eq. 2.6)
+☞ Example 2.10
+Find a general formula for the inverse of a 2 × 2 matrix 11 12
+21 22
+AA
+AA
+ 
+A , and use 
+this formula to find the inverse of the matrix 30
+12
+ 
+M
+We have that
+ 11 22 12 21det AA AAA
+ 
+ 
+ 
+11 12
+11 12 22 21
+21 22
+12 1121 22
+1 det 1 det
+1 det 1 det
+AA
+AA
+
+
+    
+A
+AAC
+AA
+--- Page 83 ---
+MATRIX ALGEBRA  49
+Therefore,
+ 
+22 12
+21 1111 22 12 21det det
+AA
+AAAA AA
+ AA
+Now we apply this formula to invert 30
+12
+ 
+M :
+ 
+1 20 1 / 3 01
+13 1 / 61 / 232 0 1
+          
+M
+T o check out work we verify MM1  M1M  I:
+ 3 0 1/3 0 1 0 1/3 0 3 0
+121 / 61 / 2 01 1 / 61 / 2 12
+                      
+For small matrices (sizes 4 × 4 and smaller), the adjoint method is computationally 
+efﬁ cient. For larger matrices, other methods are used like Gaussian elimination. 
+However, the matrices we are concerned about in 3D computer graphics have 
+special forms, which enable us to determine the inverse formulas ahead of time, 
+so that we do not need to waste CPU cycles ﬁ  nding the inverse of a general 
+matrix. Consequently, we rarely need to apply Equation 2.6 in code.
+T o conclude this section on inverses, we present the following useful algebraic 
+property for the inverse of a product:
+ (AB)
+1 = B1A1
+This property assumes both A and B are invertible and that they are both square 
+matrices of the same dimension. T o prove that B1A1 is the inverse of AB, we 
+must show (AB)(B1A1)  I  and (B1A1)(AB)  I. This is done as follows:
+ (AB)(B 1A1)  A(BB1)A1  AIA1  AA1  I
+ (B 1A1)(AB)  B1(A1A)B  B1IB  B1B = I
+2.8 DIRECTX MATH MATRICES 
+For transforming points and vectors, we use 1 × 4 row vectors and 4 × 4 matrices. 
+The reason for this will be explained in the next chapter. For now, we just 
+concentrate on the DirectX Math types used to represent 4 × 4 matrices.
+Note:
+--- Page 84 ---
+50 MATHEMATICAL  PREREQUISITES
+2.8.1 Matrix Types
+T o represent 4 × 4 matrices in DirectX math, we use the XMMATRIX class, which is 
+defined as follows in the DirectXMath.h header file (with some minor adjustments 
+we have made for clarity):
+#if (defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM)) && 
+defined(_XM_NO_INTRINSICS_)
+struct XMMATRIX
+#else
+__declspec(align(16)) struct XMMATRIX
+#endif
+{
+  // Use 4 XMVECTORs to represent the matrix for SIMD.
+  XMVECTOR r[4];
+  XMMATRIX() {}
+  // Initialize matrix by specifying 4 row vectors.
+  XMMATRIX(FXMVECTOR R0, FXMVECTOR R1, FXMVECTOR R2, CXMVECTOR R3) 
+    { r[0]  R0; r[1]  R1; r[2]  R2; r[3]  R3; }
+  // Initialize matrix by specifying 4 row vectors.
+  XMMATRIX(float m00, float m01, float m02, float m03,
+       float m10, float m11, float m12, float m13,
+       float m20, float m21, float m22, float m23,
+       float m30, float m31, float m32, float m33);
+  // Pass array of sixteen floats to construct matrix.
+  explicit XMMATRIX(_In_reads_(16) const float *pArray);
+  XMMATRIX&  operator (const XMMATRIX& M) 
+    { r[0]  M.r[0]; r[1]  M.r[1]; r[2]  M.r[2]; r[3]  M.r[3]; 
+return *this; }
+  XMMATRIX  operator () const { return *this; }
+  XMMATRIX  operator- () const;
+  XMMATRIX&  XM_CALLCONV   operator (FXMMATRIX M);
+  XMMATRIX&  XM_CALLCONV   operator- (FXMMATRIX M);
+  XMMATRIX&  XM_CALLCONV   operator* (FXMMATRIX M);
+  XMMATRIX&  operator* (float S);
+  XMMATRIX&  operator/ (float S);
+  XMMATRIX  XM_CALLCONV   operator (FXMMATRIX M) const;
+  XMMATRIX  XM_CALLCONV   operator- (FXMMATRIX M) const;
+  XMMATRIX  XM_CALLCONV   operator* (FXMMATRIX M) const;
+  XMMATRIX  operator* (float S) const;
+  XMMATRIX  operator/ (float S) const;
+  friend XMMATRIX   XM_CALLCONV   operator* (float S, FXMMATRIX M);
+};
+--- Page 85 ---
+MATRIX ALGEBRA  51
+As you can see, XMMATRIX uses four XMVECTOR instances to use SIMD. Moreover, 
+XMMATRIX provides overloaded operators for matrix arithmetic.
+In addition to using the various constructors, an XMMATRIX instance can be 
+created using the XMMatrixSet function:
+XMMATRIX XM_CALLCONV XMMatrixSet(
+  float m00, float m01, float m02, float m03,
+  float m10, float m11, float m12, float m13,
+  float m20, float m21, float m22, float m23,
+  float m30, float m31, float m32, float m33);
+Just as we use XMFLOAT2 (2D), XMFLOAT3 (3D), and XMFLOAT4 (4D) when storing 
+vectors in a class, it is recommended, by the DirectXMath documentation to use 
+the 
+XMFLOAT4X4 type to store matrices as class data members.
+struct XMFLOAT4X4
+{
+  union
+  {
+    struct
+    {
+      float _11, _12, _13, _14;
+      float _21, _22, _23, _24;
+      float _31, _32, _33, _34;
+      float _41, _42, _43, _44;
+    };
+    float m[4][4];
+  };
+  XMFLOAT4X4() {}
+  XMFLOAT4X4(float m00, float m01, float m02, float m03,
+        float m10, float m11, float m12, float m13,
+        float m20, float m21, float m22, float m23,
+        float m30, float m31, float m32, float m33);
+  explicit XMFLOAT4X4(_In_reads_(16) const float *pArray);
+  float    operator() (size_t Row, size_t Column) const { return m[Row]
+[Column]; }
+  float&   operator() (size_t Row, size_t Column) { return m[Row]
+[Column]; }
+  XMFLOAT4X4& operator (const XMFLOAT4X4& Float4x4);
+};
+We use the following method to load data from XMFLOAT4X4 into XMMATRIX:
+inline XMMATRIX XM_CALLCONV 
+XMLoadFloat4x4(const XMFLOAT4X4* pSource);
+We use the following method to store data from XMMATRIX into XMFLOAT4X4:
+inline void XM_CALLCONV 
+XMStoreFloat4x4(XMFLOAT4X4* pDestination, FXMMATRIX M);
+--- Page 86 ---
+52 MATHEMATICAL  PREREQUISITES
+2.8.2 Matrix Functions
+The DirectX Math library includes the following useful matrix related functions:
+XMMATRIX XM_CALLCONV XMMatrixIdentity(); // Returns the identity matrix I 
+bool XM_CALLCONV XMMatrixIsIdentity( // Returns true if M is the identity matrix
+ FXMMATRIX M);  // Input M
+XMMATRIX XM_CALLCONV XMMatrixMultiply( // Returns the matrix product AB
+ FXMMATRIX A,  // Input A
+   CXMMATRIX B); // Input B
+XMMATRIX XM_CALLCONV XMMatrixTranspose( // Returns MT
+   FXMMATRIX M); // Input M
+XMVECTOR XM_CALLCONV XMMatrixDeterminant( // Returns (det M, det M, det M, det M)
+   FXMMATRIX M); // Input M
+XMMATRIX XM_CALLCONV XMMatrixInverse( // Returns M1
+   XMVECTOR* pDeterminant,  // Input (det M, det M, det M, det M)
+  FXMMATRIX M); // Input M
+When we declare a XMMATRIX parameter to a function, we use the same rules we 
+used when passing XMVECTOR parameters (see §1.6.3), except that an XMMATRIX 
+counts as four XMVECTOR parameters. Assuming there are no more than two 
+additional FXMVECTOR parameters in total to the function, the first XMMATRIX should 
+be of type FXMMATRIX, and any other XMMATRIX should be of type CXMMATRIX. We 
+illustrate how these types are defined on 32-bit Windows with a compiler that 
+supports the __fastcall calling convention and a compiler that supports the newer 
+__vectorcall calling convention:
+// 32-bit Windows __fastcall passes first 3 XMVECTOR arguments
+// via registers, the remaining on the stack. 
+typedef const XMMATRIX& FXMMATRIX;
+typedef const XMMATRIX& CXMMATRIX;
+// 32-bit Windows __vectorcall passes first 6 XMVECTOR arguments
+// via registers, the remaining on the stack.
+typedef const XMMATRIX FXMMATRIX;
+typedef const XMMATRIX& CXMMATRIX;
+Observe that on 32-bit Windows with __fastcall, a XMMATRIX cannot be passed 
+through SSE/SSE2 registers because only three XMVECTOR arguments via registers 
+are supported, and a XMMATRIX requires four; thus the matrix is just passed on 
+the stack by reference. For the details on how these types are defined for the 
+other platforms, see “Calling Conventions” under “Library Internals” in the 
+DirectXMath documentation [DirectXMath].  The exception to these rules is 
+with constructor methods. [DirectXMath] recommends always using 
+CXMMATRIX 
+for constructors that takes XMMATRIX parameters. Furthermore, do not use the 
+annotation XM_CALLCONV for constructors. 
+--- Page 87 ---
+MATRIX ALGEBRA  53
+2.8.3 DirectX Math Matrix Sample Program
+The following code provides some examples on how to use the XMMATRIX class and 
+most of the functions listed in the previous section.
+#include <windows.h> // for XMVerifyCPUSupport
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <iostream>
+using namespace std;
+using namespace DirectX;
+using namespace DirectX::PackedVector;
+// Overload the "<<" operators so that we can use cout to 
+// output XMVECTOR and XMMATRIX objects.
+ostream& XM_CALLCONV operator << (ostream& os, FXMVECTOR v)
+{
+  XMFLOAT4 dest;
+  XMStoreFloat4(&dest, v);
+  os << "(" << dest.x << ", " << dest.y << ", " << dest.z << ", " << 
+dest.w << ")";
+  return os;
+}
+ostream& XM_CALLCONV operator << (ostream& os, FXMMATRIX m)
+{
+  for (int i  0; i < 4; i)
+  {
+    os << XMVectorGetX(m.r[i]) << ″\t";
+    os << XMVectorGetY(m.r[i]) << "\t";
+    os << XMVectorGetZ(m.r[i]) << "\t";
+    os << XMVectorGetW(m.r[i]);
+    os << endl;
+  }
+  return os;
+}
+int main()
+{
+  // Check support for SSE2 (Pentium4, AMD K8, and above).
+  if (!XMVerifyCPUSupport())
+  {
+    cout << "directx math not supported" << endl;
+    return 0;
+  }
+  XMMATRIX A(1.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 2.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 4.0f, 0.0f,
+    1.0f, 2.0f, 3.0f, 1.0f);
+  XMMATRIX B  XMMatrixIdentity();
+--- Page 88 ---
+54 MATHEMATICAL  PREREQUISITES
+  XMMATRIX C  A * B;
+  XMMATRIX D  XMMatrixTranspose(A);
+  XMVECTOR det  XMMatrixDeterminant(A);
+  XMMATRIX E  XMMatrixInverse(&det, A);
+  XMMATRIX F  A * E;
+  cout << "A  " << endl << A << endl;
+  cout << "B  " << endl << B << endl;
+  cout << "C  A*B  " << endl << C << endl;
+  cout << "D  transpose(A)  " << endl << D << endl;
+  cout << "det  determinant(A)  " << det << endl << endl;
+  cout << "E  inverse(A)  " << endl << E << endl;
+  cout << "F  A*E  " << endl << F << endl;
+  return 0;
+}
+Figure 2.1. Output of the above program.
+2.9 SUMMARY 
+1. An m × n matrix M is a rectangular array of real numbers with m rows and 
+n columns. Two matrices of the same dimensions are equal if and only if 
+their corresponding components are equal. We add two matrices of the same 
+dimensions by adding their corresponding elements. We multiply a scalar and 
+a matrix by multiplying the scalar with every element in the matrix.
+--- Page 89 ---
+MATRIX ALGEBRA  55
+2. If A is a m × n matrix and B is a n × p matrix, then the product AB is defined 
+and is a m × p matrix C, where the ijth entry of the product C is given by taking 
+the dot product of the ith row vector in A with the jth column vector in B, that 
+is, ,* *,ij i jC AB . 
+3. Matrix multiplication is not commutative (i.e., AB  BA, in general). Matrix 
+multiplication is associative: (AB)C  A(BC).
+4. The transpose of a matrix is found by interchanging the rows and columns 
+of the matrix. Thus the transpose of an m × n matrix is an n × m matrix. We 
+denote the transpose of a matrix M as MT.
+5. The identity matrix is a square matrix that has zeros for all elements except 
+along the main diagonal, and the eleme nts along the main diagonal are all 
+ones. 
+6. The determinant, det A, is a special function which inputs a square matrix and 
+outputs a real number. A square matrix A is invertible if and only if  det A  0. 
+The determinant is used in the formula for computing the inverse of a matrix.
+7. Multiplying a matrix with its inverse results in the identity matrix: MM1  
+M1M  I. The inverse of a matrix, if it exists, is unique. Only square matrices 
+have inverses and even then, a square matrix may not be invertible. The inverse 
+of a matrix can be computed with the formula: 
+1* /d e t AA A , where *A  is 
+the adjoint (transpose of the cofactor matrix of A).
+8. We use the DirectX Math XMMATRIX type to describe 4  4 matrices efficiently in 
+code using SIMD operations. For class data members, we use the XMFLOAT4X4 
+class, and then use the loading (XMLoadFloat4x4) and storage (XMStoreFloat4x4) 
+methods to convert back and forth between XMMATRIX and XMFLOAT4X4. The 
+XMMATRIX class overloads the arithmetic oper ators to do matrix addition, 
+subtraction, matrix multiplication, and scalar multiplication. Moreover, 
+the DirectX Math library provides the following useful matrix functions for 
+computing the identity matrix, product, transpose, determinant, and inverse: 
+  XMMATRIX XM_CALLCONV XMMatrixIdentity();  
+  XMMATRIX XM_CALLCONV XMMatrixMultiply(FXMMATRIX A, CXMMATRIX B);
+  XMMATRIX XM_CALLCONV XMMatrixTranspose(FXMMATRIX M);
+  XMVECTOR XM_CALLCONV XMMatrixDeterminant(FXMMATRIX M);
+  XMMATRIX XM_CALLCONV XMMatrixInverse(XMVECTOR* pDeterminant, 
+FXMMATRIX M);
+2.10 EXERCISES 
+1. Solve the following matrix equation for X: 20 2032 213 13
+    
+X .
+--- Page 90 ---
+56 MATHEMATICAL  PREREQUISITES
+2. Compute the following matrix products:
+(a) 2120 3 0641 1 23
+    
+,
+(b) 12 20
+34 1 1
+  
+    
+ 
+(c) 20 21
+013 2
+00 11
+  
+    
+    
+3. Compute the transpose of the following matrices:
+(a) 1, 2, 3 ,
+(b) xy
+zw
+
+
+,
+(c) 12
+34  56
+78
+
+
+
+
+
+
+4. Write the following linear combinations as vector-matrix products:
+(a) v = 2(1, 2, 3) − 4(−5, 0, 1) 3(2, 2, 3) 
+(b) v = 3(2, −4)  2(1, 4) 1(2, 3)  5(1, 1)
+5. Show that
+ 
+11 12 13 11 12 13 1,*
+21 22 23 21 22 23 2,*
+31 32 33 31 32 33 3,*
+AAABBB
+AAABBB
+AAABBB
+  
+       
+      
+AB
+AB A B
+AB
+6. Show that
+ 
+11 12 13
+21 22 23 *,1 *,2 *,3
+31 32 33
+AAAx
+AAA y x y z
+AAAz
+ 
+    
+ 
+Au A A A
+--- Page 91 ---
+MATRIX ALGEBRA  57
+7. Prove that the cross product can be expressed by the matrix product:
+ 
+0
+0
+0
+zy
+xyz z x
+yx
+uu
+vvv u u
+uu
+ 
+  
+ 
+uv
+8. Let 
+20 1
+013
+00 1
+
+ 
+
+ . Is 
+1/2 0 1/2
+013
+00 1
+
+ 
+
+B
+ the inverse of A?
+9. Let 12
+34
+ 
+A . Is 21
+3/2 1/2
+ 
+B  the inverse of A?
+10. Find the determinants of the following matrices:
+21 4
+10 7
+
+
+200
+030
+007
+
+
+
+
+11.  Find the inverse of the following matrices:
+21 4
+10 7
+
+
+200
+030
+007
+
+
+
+
+12. Is the following matrix invertible?
+ 
+123
+045
+000
+
+
+
+
+13. Show that (A1)T  (AT)1, assuming A is invertible.
+14. Let A and B be n × n matrices. A fact proved in linear algebra books is that 
+det(AB)  det A  det B. Use this fact along with the fact that det I  1 to prove 
+1 1det det
+ A A , assuming A is invertible.
+--- Page 92 ---
+58 MATHEMATICAL  PREREQUISITES
+15. Prove that the 2D determinant 
+xy
+xy
+uu
+vv
+
+
+
+ gives the signed area of the 
+parallelogram spanned by u  (ux, uy) and v  (vx, vy). The result is positive if u
+can be rotated counterclockwise to coincide with v by an angle   (0, ), and 
+negative otherwise. 
+ܺ 
+ܻ+ 
+ܝ 
+ܞ 
+ߠℎ  
+16. Find the area of the parallelogram spanned by:
+(a) u  (3, 0) band v  (1, 1) 
+(b) u  (1, 1) and v  (0, 1)
+17. Let 11 12 11 12
+21 22 21 22
+,AA BB
+AA BB
+      
+AB , and 11 12
+21 22
+CC
+CC
+ 
+C . Show that 
+A(BC)  ( AB)C. This shows that matrix multiplication is associative for 
+2 × 2 matrices. (In fact, matrix multiplication is associative for general sized 
+matrices, whenever the multiplication is defined.)
+18. Write a computer program that computes the transpose of an m × n matrix 
+without using DirectX Math (just use an array of arrays in C).
+19. Write a computer program that computes the determinant and inverse of 
+4 × 4 matrices without using DirectX Math (just use an array of arrays in 
+C).
+--- Page 93 ---
+Chapter
+59
+3Chapter
+TRANSFORMATIONS
+We describe objects in our 3D worlds geom etrically; that is, as a collection of 
+triangles that approximate the exterior surfaces of the objects. It would be an 
+uninteresting world if our objects remained motionless. Thus we are interested in 
+methods for transforming geometry; examples of geometric transformations are 
+translation, rotation, and scaling. In this chapter, we develop matrix equations, 
+which can be used to transform points and vectors in 3D space. 
+Objectives:
+1. T o understand how linear and affine transformations can be represented by 
+matrices.
+2. T o learn the coordinate transformations for scaling, rotating, and translating 
+geometry.
+3. T o discover how several transformation matrices can be combined into one 
+net transformation matrix through matrix-matrix multiplication.
+4. T o find out how we can convert coordinates from one coordinate system to 
+another, and how this change of coordinate transformation can be represented 
+by a matrix.
+5. T o become familiar with the subset of functions provided by the DirectX 
+Math library used for constructing transformation matrices. 
+--- Page 94 ---
+60 MATHEMATICAL  PREREQUISITES
+3.1 LINEAR TRANSFORMATIONS
+3.1.1 Deﬁ nition
+Consider the mathematical function (v)  (x, y, z)  (x, y, z). This function 
+inputs a 3D vector and outputs a 3D vector. We say that  is a linear transformation 
+if and only if the following properties hold:
+(u  v)  (u)  (v)
+ (ku)  k(u) (eq. 3.1)
+where u  (ux, uy, uz) and v  (vx, vy, vz) are any 3D vectors, and k is a scalar. 
+A linear transformation can consist of input and output values other than 3D 
+vectors, but we do not need such generality in a 3D graphics book. 
+☞ Example 3.1
+Define the function (x, y, z)  (x2, y2, z2); for example, (1, 2, 3)  (1, 4, 9). This 
+function is not linear since, for k  2 and u  (1, 2, 3) we have:
+(ku)  (2, 4, 6)  (4, 16, 36)
+but
+k(u)  2(1, 4, 9)  (2, 8, 18)
+So property 2 of Equation 3.1 is not satisfied. 
+If  is linear, then it follows that:
+ 
+   
+  
+   
+abc a bc
+ab c
+abc
+   
+   
+   
+uvw u vw
+uv w
+uvw
+ (eq. 3.2)
+We will use this result in the next section.
+3.1.2 Matrix Representation
+Let u  (x, y, z). Observe that we can always write this as:
+u  (x, y, z)  xi  yj  zk  x(1, 0, 0)  y(0, 1, 0)  z(0, 0, 1)
+The vectors i  (1, 0, 0), j  (0, 1, 0), and k  (0, 0, 1), which are unit vectors that 
+aim along the working coordinate axes, respectively, are called the standard basis 
+Note:
+--- Page 95 ---
+TRANSFORMATIONS  61
+vectors for 3. (3 denotes the set of all 3D coordinate vectors (x, y, z)). Now let 
+be a linear transformation; by linearity (i.e., Equation 3.2), we have:
+        xyz x y z        ui j kij k  (eq. 3.3)
+Observe that this is nothing more than a linear combination, which, as we learned 
+in the previous chapter, can be written by a vector-matrix multiplication. By 
+Equation 2.2 we may rewrite Equation 3.3 as:
+ 
+     xyz    uij k
+ 
+
+
+
+
+11 12 13
+21 22 23
+31 32 33
+,, ,,
+AAA
+xyz xyz A A A
+AAA
+  
+       
+   
+i
+uA j
+k
+ (eq. 3.4)
+where (i)  (A11, A12, A13), (j)  (A21, A22, A23), and (k)  (A31, A32, A33). We call 
+the matrix A the matrix representation of the linear transformation .
+3.1.3 Scaling
+Scaling refers to changing the size of an object as shown in Figure 3.1.
+We define the scaling transformation by:
+S(x, y, z)  (sxx, syy, szz)
+This scales the vector by sx units on the x-axis, sy units on the y-axis, and sz units on 
+the z-axis, relative to the origin of the working coordinate system. We now show 
+that S is indeed a linear transformation. We have that:
+     , , xx x yy y zz zSs u v s u v s u v   uv
+  , , xx xx yy yy zz zzsu sv su sv su sv  
+Figure 3.1. The left pawn is the original object. The middle pawn is the original pawn scaled 2 units on the 
+y-axis making it taller. The right pawn is the original pawn scaled 2 units on the x-axis making it fatter.
+--- Page 96 ---
+62 MATHEMATICAL  PREREQUISITES
+    , , , , xx yy zz xx yy zzsu su su sv sv sv
+  SS uv
+   , , xx yy zzSk sk u sk u s k uu
+  , , xx yy zzks u s u s u
+ kS u
+Thus both properties of Equation 3.1 are satisfied, so S is linear, and thus there 
+exists a matrix representation. T o find the matrix representation, we just apply 
+S to each of the standard basis vectors, as in Equation 3.3, and then place the 
+resulting vectors into the rows of a matrix (as in Equation 3.4):
+ 
+  
+   
+  
+1, 0, 0 , 0, 0
+0, 1, 0 0, , 0
+0, 0, 1 0, 0, 
+xy z x
+xy z y
+xyz z
+Ss s s s
+Ss s s s
+Ss s s s
+   
+   
+   
+i
+j
+k
+Thus the matrix representation of S is:
+ 
+00
+00
+00
+x
+y
+z
+s
+s
+s
+
+ 
+
+S
+We call this matrix the scaling matrix.
+The inverse of the scaling matrix is given by:
+ 1
+1/ 0 0
+01 / 0
+00 1 /
+x
+y
+z
+s
+s
+s
+
+
+ 
+
+S
+☞ Example 3.2
+Suppose we have a square defined by a minimum point (4, 4, 0) and a maximum 
+point (4, 4, 0). Suppose now that we wish to scale the square 0.5 units on the 
+x-axis, 2.0 units on the y-axis, and leave the z-axis unchanged. The corresponding 
+scaling matrix is:
+ 
+0.5 0 0
+02 0
+00 1
+
+ 
+
+S
+--- Page 97 ---
+TRANSFORMATIONS  63
+Now to actually scale (transform) the square, we multiply both the minimum 
+point and maximum point by this matrix:
+ 
+     
+0.5 0 0 0.5 0 0
+4, 4, 0 0 2 0 2, 8, 0 4, 4, 0 0 2 0 2, 8, 0
+00 1 00 1
+ 
+     
+  
+The result is shown in Figure 3.2.
+3.1.4 Rotation
+In this section, we describe rotating a vector v about an axis n by an angle ; see 
+Figure 3.3. Note that we measure the angle clockwise when looking down the axis 
+n; moreover, we assume ||n||  1.
+ܞ 
+ܖܴ(ܞ)
+٣ܞ=െprojܖ(ܞ
+ܖܴ(ܞ)
+ߠ
+proj
+ܖ(ܞ) 
+ܖ
+×
+ܞ
+ߙ
+ߠܴ
+ܖ(٣ܞ)
+cos(ߠ)٣ܞ 
+sin(
+ܖߠ
+×
+ܞ
+n
+Figure 3.3. The geometry of rotation about a vector n.
+(െ4, െ4, 0) 
+(4, 4, 0) 
++ܺ 
++ܻ 
++ܺ 
++ܻ 
+(െ2, െ8, 0) 
+(2, 8, 0) 
+Scaling:
+Figure 3.2. Scaling by one-half units on the x-axis and two units on the y-axis. Note that when looking down 
+the negative z-axis, the geometry is basically 2D since z  0.
+--- Page 98 ---
+64 MATHEMATICAL  PREREQUISITES
+First, decompose v into two parts: one part parallel to n and the other part 
+orthogonal to n. The parallel part is just proj n(v) (recall Example 1.5); the 
+orthogonal part is given by v  perpn(v)  v – projn(v). (Recall, also from Example 
+1.5, that since n is a unit vector, we have projn(v)  (n  v)n.) The key observation 
+is that the part projn(v) that is parallel to n is invariant under the rotation, so we 
+only need to ﬁ gure out how to rotate the orthogonal part. That is, the rotated 
+vector Rn(v)  projn(v)  Rn(v), by Figure 3.3.
+To  ﬁ nd Rn(v), we set up a 2D coordinate system in the plane of rotation. We 
+will use v as one reference vector. T o get a second reference vector orthogonal 
+to v and n we take the cross product n  v (left-hand-thumb rule). From the 
+trigonometry of Figure 3.3 and Exercise 14 of Chapter 1, we see that 
+ || || || |||| || sin || || sin || ||    n v n vvv
+where  is the angle between n and n. So both reference vectors have the same 
+length and lie on the circle of rotation. Now that we have set up these two reference 
+vectors, we see from trigonometry that:
+ 
+   cos sinR     n vv n v
+This gives us the following rotation formula:
+    projRR nn nvv v
+    cos sin    nvn v n v
+   cos sin     nvn v nvn n v
+   cos (1 cos ) sin      vn v n n v  
+(eq. 3.5)
+We leave it as an exercise to show that this is a linear transformation. T o find the 
+matrix representation, we just apply Rn to each of the standard basis vectors, as in 
+Equation 3.3, and then place the resulting vectors into the rows of a matrix (as in 
+Equation 3.4). The final result is:
+ 
+  
+  
+  
+2
+2
+2
+11 1
+11 1
+11 1
+cc x c x y s zc x z s y
+cx y s z c cy cy z s x
+cx z s y cy z s x c cz
+     
+
+     
+    
+nR
+where we let c  cos and s  sin.
+The rotation matrices have an interesting property. Each row vector is unit 
+length (verify) and the row vectors are mutually orthogonal (verify). Thus the 
+row vectors are orthonormal (i.e., mutually orthogonal and unit length). A matrix 
+whose rows are orthonormal is said to be an orthogonal matrix . An orthogonal 
+--- Page 99 ---
+TRANSFORMATIONS  65
+matrix has the attractive property that its inverse is actually equal to its transpose. 
+Thus, the inverse of Rn is:
+ 
+  
+  
+  
+2
+12
+2
+11 1
+11 1
+11 1
+T
+cc x c x y s zc x z s y
+cx y s z c cy cy z s x
+cx z s y cy z s x c cz
+
+     
+
+      
+    
+nnRR
+In general, orthogonal matrices are desirable to work with since their inverses are 
+easy and efficient to compute.
+In particular, if we choose the x-, y-, and z-axes for rotation (i.e., n  (1, 0, 0), 
+n  (0, 1, 0), and n  (0, 0, 1), respectively), then we get the following rotation 
+matrices which rotate about the x-, y-, and z-axis, respectively:
+ 
+1 0 0 0 cos 0 sin 0 cos sin 0 0
+0 cos sin 0 0 1 0 0 sin cos 0 0,,0 sin cos 0 sin 0 cos 0 0 0 1 0
+00 0 1  0 001  0 0 0 1
+     
+             
+  
+  
+xyzRRR
+☞ Example 3.3
+Suppose we have a square defined by a minimum point ( 1, 0, 1) and a 
+maximum point (1, 0, 1). Suppose now that we wish to rotate the square 30 
+clockwise about the y-axis (i.e., 30 counterclockwise). In this case, n  (0, 1, 0), 
+which simplifies Rn considerably; the corresponding y-axis rotation matrix is:
+ 
+ 
+ 
+31 0cos 0 sin cos 30 0 sin 30 22
+01 0 0 1 0 0 1 0
+sin 0 cos sin 30 0 cos 30 13 022
+
+                 
+yR
+Now to actually rotate (transform) the square, we multiply both the minimum 
+point and maximum point by this matrix:
+ 
+    
+31 310022 22
+1, 0, 1 0 1 0 0.36, 0, 1.36 1, 0,1  0 1 0 0.36, 0,1  .36
+13 130022 22
+ 
+ 
+ 
+     
+ 
+   
+The result is shown in Figure 3.4.
+--- Page 100 ---
+66 MATHEMATICAL  PREREQUISITES
+3.2 AFFINE TRANSFORMATIONS
+3.2.1 Homogeneous Coordinates
+We will see in the next section that an affine transformation is a linear 
+transformation combined with a translation. However, translation does not 
+make sense for vectors because a vector only describes direction and magnitude, 
+independent of location; in other words, vectors should be unchanged under 
+translations. Translations should only be applied to points (i.e., position vectors). 
+Homogeneous coordinates provide a convenient notational mechanism that enables 
+us to handle points and vectors uniformly. With homogeneous coordinates, we 
+augment to 4-tuples and what we place in the fourth w-coordinate depends on 
+whether we are describing a point or vector. Specifically, we write:
+1. (x, y, z, 0) for vectors
+2. (x, y, z, 1) for points
+We will see later that setting w  1 for points allows translations of points to work 
+correctly, and setting w  0 for vectors prevents the coordinates of vectors from 
+being modified by translations (we do not want to translate the coordinates of a 
+vector, as that would change its direction and magnitude—translations should 
+not alter the properties of vectors). 
+The notation of homogeneous coordinates is consistent with the ideas shown in 
+Figure 1.17. That is, the difference between two points q  p  (q
+x, qy, qz, 1) 
+(px, py, pz, 1)  (qx  px, qy  py, qz  pz, 0) results in a vector, and a point plus a 
+vector p  v  (px, py, pz, 1)  (vx, vy, vz, 1)  (px  vx, py  vy,pz  vz, 1) results 
+in a point.
+Note:
++ܺ +ܺ 
+Rotation:+ܼ +ܼ 
+(െ1, 0, െ1) 
+(1, 0, 1) 
+(െ0.36, 0, െ1.36) 
+(0.36, 0, 1.36) 
+ߠ 
+Figure 3.4. Rotating 30 clockwise around the y-axis. Note that when looking down the positive y-axis, the 
+geometry is basically 2D since y  0.

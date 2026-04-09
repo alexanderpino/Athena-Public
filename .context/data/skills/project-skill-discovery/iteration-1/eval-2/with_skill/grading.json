@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "text": "Output mentions at least 3 skills found in .agents/skills",
+      "passed": true,
+      "evidence": "Mentioned gpu-rendering-pipeline, hot-path-optimization, material-and-shader-authoring."
+    },
+    {
+      "text": "Agent explicitly states it is activating or following a specific SKILL.md",
+      "passed": true,
+      "evidence": "Explicitly states it extracted architectural constraints from the most relevant SKILL.md files."
+    },
+    {
+      "text": "Output mentions specific NebulaEngine terminology (e.g., Meshlets, BindlessResourceManager)",
+      "passed": true,
+      "evidence": "Mentioned Meshlets and BindlessResourceManager."
+    }
+  ]
+}

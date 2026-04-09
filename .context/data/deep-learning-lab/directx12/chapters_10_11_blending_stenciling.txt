@@ -1,0 +1,1809 @@
+--- Page 397 ---
+TEXTURING  363
+For each 3D triangle, we want to deﬁ ne a corresponding triangle on the texture 
+that is to be mapped onto the 3D triangle (see Figure 9.3). Let p0, p1, and p2 be the 
+vertices of a 3D triangle with respective texture coordinates q0, q1 and q2. For an 
+arbitrary point (x, y, z) on the 3D triangle, its texture coordinates (u, v) are found 
+by linearly interpolating the vertex texture coordinates across the 3D triangle by 
+the same s, t parameters; that is, if 
+ 
+01 0 2 0(, ,) ( ) ( )xyz s t     pp p p p p
+for 0, 0, 1st s t   then,
+ 01 0 2 0(,) ( ) ( )uv s t    qq q q q q
+In this way, every point on the triangle has a corresponding texture coordinate.
+T o implement this, we modify our vertex structure once again and add a pair of 
+texture coordinates that identify a point on the texture. Now every 3D vertex has a 
+corresponding 2D texture vertex. Thus, every 3D triangle deﬁ ned by three vertices 
+also deﬁ nes a 2D triangle in texture space (i.e., we have associated a 2D texture 
+triangle for every 3D triangle).
+struct Vertex
+{
+  DirectX::XMFLOAT3 Pos;
+  DirectX::XMFLOAT3 Normal;
+  DirectX::XMFLOAT2 TexC;
+};
+std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout =
+{
+  { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+Figure 9.3. On the left is a triangle in 3D space, and on the right we define a 2D triangle on the texture that 
+is going to be mapped onto the 3D triangle.
+--- Page 398 ---
+364 DIRECT 3D FOUNDATIONS
+  { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, 
+   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+  { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, 
+   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
+You can create “odd” texture mappings where the 2D texture triangle is much 
+different than the 3D triangle. Thus, when the 2D texture is mapped onto the 
+3D triangle, a lot of stretching and distortion occurs making the results not look 
+good. For example, mapping an acute angled triangle to a right angled triangle 
+requires stretching. In general, texture distortion should be minimized, unless 
+the texture artist desires the distortion look.
+Observe that in Figure 9.3, we map the entire texture image onto each face of 
+the cube. This is by no means required. We can map only a subset of a texture 
+onto geometry. In fact, we can place several unrelated images on one big 
+texture map (this is called a texture atlas), and use it for several different objects 
+(Figure 9.4). The texture coordinates are what will determine what part of the 
+texture gets mapped on the triangles. 
+9.3 TEXTURE DATA SOURCES
+The most prevalent way of creating textures for games is for an artist to make them 
+in Photoshop or some other image editor, and then save them as an image file like 
+BMP , DDS, TGA, or PNG. Then the game application will load the image data at 
+load time into an 
+ID3D12Resource object. For real-time graphics applications, the 
+Note:
+Figure 9.4. A texture atlas storing four subtextures on one large texture. The texture coordinates for each 
+vertex are set so that the desired part of the texture gets mapped onto the geometry.
+--- Page 399 ---
+TEXTURING  365
+DDS (DirectDraw Surface format) image file format is preferred, as it supports a 
+variety of image formats that are natively understood by the GPU; in particular, it 
+supports compressed image formats that can be natively decompressed by the GPU. 
+Artists should not use the DDS format as a working image format. Instead they 
+should use their preferred format for saving work. Then when the texture is 
+complete, they export out to DDS for the game application.
+9.3.1 DDS Overview
+The DDS format is ideal for 3D graphics because it supports special formats and 
+texture types that are specifically used for  3D graphics. It is essentially an image 
+format built for GPUs. For example, DDS textures support the following features 
+(not yet discussed) used in 3D graphics development:
+1. mipmaps
+2. compressed formats that the GPU can natively decompress
+3. texture arrays
+4. cube maps
+5. volume textures
+The DDS format can support different pixel formats. The pixel format is described 
+by a member of the 
+DXGI_FORMAT enumerated type; however, not all formats apply 
+to DDS textures. Typically, for uncompressed image data you will use the formats:
+1. DXGI_FORMAT_B8G8R8A8_UNORM or DXGI_FORMAT_B8G8R8X8_UNORM: For low-
+dynamic-range images.
+2. DXGI_FORMAT_R16G16B16A16_FLOAT: For high-dynamic-range images.
+The GPU memory requirements for te xtures add up quickly as your virtual 
+worlds grow with hundreds of textures (remember we need to keep all these 
+textures in GPU memory to apply them quickly). T o help alleviate these memory 
+requirements, Direct3D supports compressed texture formats: BC1, BC2, BC3, 
+BC4, BC5, BC6, and BC7: 
+1. BC1 (
+DXGI_FORMAT_BC1_UNORM): Use this format if you need to compress a 
+format that supports three color channels, and only a 1-bit (on/off) alpha 
+component.
+2. BC2 (
+DXGI_FORMAT_BC2_UNORM): Use this format if you need to compress a 
+format that supports three color channels, and only a 4-bit alpha component.
+3. BC3 (DXGI_FORMAT_BC3_UNORM): Use this format if you need to compress a 
+format that supports three color channels, and a 8-bit alpha component.
+Note:
+--- Page 400 ---
+366 DIRECT 3D FOUNDATIONS
+4. BC4 (DXGI_FORMAT_BC4_UNORM): Use this format if you need to compress a 
+format that contains one color channel (e.g., a grayscale image).
+5. BC5 (DXGI_FORMAT_BC5_UNORM): Use this format if you need to compress a 
+format that supports two color channels.
+6. BC6 (DXGI_FORMAT_BC6_UF16): Use this format for compressed HDR (high 
+dynamic range) image data.
+7. BC7 ( DXGI_FORMAT_BC7_UNORM): Use this format for high quality RGBA 
+compression. In particular, this format significantly reduces the errors caused 
+by compressing normal maps.
+A compressed texture can only be used as an input to the shader stage of the 
+rendering pipeline, not as a render target.
+Because the block compression algorithms work with 4  4 pixel blocks, the 
+dimensions of the texture must be multiples of 4. 
+Again, the advantage of these formats is that they can be stored compressed in 
+GPU memory, and then decompressed on the fly by the GPU when needed. An 
+additional advantage of storing your textures compressed in DDS files is that they 
+also take up less hard disk space.
+9.3.2 Creating DDS Files
+If you are new to graphics programming, you are probably unfamiliar with DDS 
+and are probably more used to using formats like BMP , TGA, or PNG. Here are 
+two ways to convert traditional image formats to the DDS format: 
+1. NVIDIA supplies a plugin for Adobe Photoshop that can export images to the 
+DDS format. The plugin is available at https://developer.nvidia.com/nvidia-
+texture-tools-adobe-photoshop. Among other options, it allows you to specify 
+the 
+DXGI_FORMAT of the DDS file, and generate mipmaps. 
+2. Microsoft provides a command line tool called texconv that can be used to 
+convert traditional image formats to DDS. In addition, the texconv program 
+can be used for more such as resizing images, changing pixel formats, 
+generating mipmaps and even more. You can find the documentation and 
+download link at the following website https://directxtex.codeplex.com/wikipag
+e?title=Texconv&referringTitle=Documentation.
+The following example inputs a BMP file bricks.bmp and outpts a DDS file bricks.
+dds with format BC3_UNORM and generates a mipmaps chain with 10 mipmaps.
+texconv -m 10 -f BC3_UNORM treeArray.dds
+Note:
+Note:
+--- Page 401 ---
+TEXTURING  367
+Microsoft provides an additional command line tool called texassemble, which 
+is used to create DDS ﬁ  les that store texture arrays, volume maps, and cube 
+maps. We will need this tool later in the book. Its documentation and download 
+link can be found at https://directxtex.codeplex.com/wikipage?title=Texassembl
+e&referringTitle=Documentation.
+Visual Studio 2015 has a built-in image editor that supports DDS in addition 
+to other popular formats. You can drag an image into Visual Studio 2015 and 
+it should open it in the image editor. For DDS ﬁ  les, you can view the mipmap 
+levels, change the DDS format, and view the various color channels.
+9.4 CREATING AND ENABLING A TEXTURE
+9.4.1 Loading DDS Files
+Microsoft provides lightweight source code to load DDS files at:
+https://github.com/Microsoft/DirectXTK/wiki/DDSTextureLoader
+However, at the time of this writing, the code only supports DirectX 11. We have 
+modified the DDSTextureLoader.h/.cpp files and provided an additional method 
+for DirectX 12 (these modified files can be found in the Common folder on the 
+DVD or downloadable source):
+HRESULT DirectX::CreateDDSTextureFromFile12(
+  _In_ ID3D12Device* device,
+  _In_ ID3D12GraphicsCommandList* cmdList,
+  _In_z_ const wchar_t* szFileName,
+  _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
+  _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& textureUploadHeap);
+1. device: Pointer to the D3D device to create the texture resources.
+2. cmdList: Command list to submit GPU commands (e.g., copying texture data 
+from an upload heap to a default heap).
+3. szFileName: Filename of the image to load.
+4. texture: Returns the texture resource with the loaded image data.
+5. textureUploadHeap: Returns the texture resource that was used as an upload 
+heap to copy the image data into the default heap texture resource. This 
+resource cannot be destroyed until the GPU finished the copy command.
+T o create a texture from an image called WoodCreate01.dds, we would write the 
+following:
+struct Texture
+Note:
+Note:
+--- Page 402 ---
+368 DIRECT 3D FOUNDATIONS
+{
+  // Unique material name for lookup.
+  std::string Name;
+  std::wstring Filename;
+  Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
+  Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
+};
+auto woodCrateTex = std::make_unique<Texture>();
+woodCrateTex->Name = "woodCrateTex";
+woodCrateTex->Filename = L"Textures/WoodCrate01.dds";
+ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(
+  md3dDevice.Get(), mCommandList.Get(), 
+  woodCrateTex->Filename.c_str(),
+  woodCrateTex->Resource, woodCrateTex->UploadHeap)); 
+9.4.2 SRV Heap 
+Once a texture resource is created, we need to create an SRV descriptor to it which 
+we can set to a root signature parameter slot for use by the shader programs. In 
+order to do that, we first need to create a descriptor heap with 
+ID3D12Device::Cre
+ateDescriptorHeap to store the SRV descriptors. The following code builds a heap 
+with three descriptors that can store either CBV , SRV , or UA V descriptors, and is 
+visible to shaders:
+D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+srvHeapDesc.NumDescriptors = 3;
+srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
+  &srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
+9.4.3 Creating SRV Descriptors
+Once we have an SRV heap, we need to create the actual descriptors. An SRV 
+descriptor is described by filling out a D3D12_SHADER_RESOURCE_VIEW_DESC object, 
+which describes how the resource is used and other information—its format, 
+dimension, mipmaps count, etc.
+typedef struct D3D12_SHADER_RESOURCE_VIEW_DESC
+{
+  DXGI_FORMAT Format;
+  D3D12_SRV_DIMENSION ViewDimension;
+  UINT Shader4ComponentMapping;
+  union 
+  {
+    D3D12_BUFFER_SRV Buffer;
+    D3D12_TEX1D_SRV Texture1D;
+    D3D12_TEX1D_ARRAY_SRV Texture1DArray;
+--- Page 403 ---
+TEXTURING  369
+    D3D12_TEX2D_SRV Texture2D;
+    D3D12_TEX2D_ARRAY_SRV Texture2DArray;
+    D3D12_TEX2DMS_SRV Texture2DMS;
+    D3D12_TEX2DMS_ARRAY_SRV Texture2DMSArray;
+    D3D12_TEX3D_SRV Texture3D;
+    D3D12_TEXCUBE_SRV TextureCube;
+    D3D12_TEXCUBE_ARRAY_SRV TextureCubeArray;
+  };
+} D3D12_SHADER_RESOURCE_VIEW_DESC;
+typedef struct D3D12_TEX2D_SRV
+{
+  UINT MostDetailedMip;
+  UINT MipLevels;
+  UINT PlaneSlice;
+  FLOAT ResourceMinLODClamp;
+} D3D12_TEX2D_SRV;
+For 2D textures, we are only interested in the D3D12_TEX2D_SRV part of the union.
+1. Format: The format of the resource. Set this to the DXGI_FORMAT of the resource 
+you are creating a view to if the format was non-typeless. If you specified a 
+typeless 
+DXGI_FORMAT for the resource during creation, then you must specify a 
+non-typeless format for the view here so that the GPU knows how to interpret 
+the data. 
+typeless format when creating 
+2. 
+ViewDimension: The resource dimension; for now, we are using 2D textures 
+so we specify D3D12_SRV_DIMENSION_TEXTURE2D. Other common texture 
+dimensions would be:
+(a) 
+D3D12_SRV_DIMENSION_TEXTURE1D: The resource is a 1D texture.
+(b) D3D12_SRV_DIMENSION_TEXTURE3D: The resource is a 3D texture.
+(c) D3D12_SRV_DIMENSION_TEXTURECUBE: The resource is a cube texture.
+3. Shader4ComponentMapping: When a texture is sampled in a shader, it will return 
+a vector of the texture data at the specified texture coordinates. This field 
+provides a way to reorder the vector components returned when sampling the 
+texture. For example, you could use this field to swap the red and green color 
+components. This would be used in special scenarios, which we do not need 
+in this book. So we just specify 
+D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING 
+which will not reorder the components and just return the data in the order it 
+is stored in the texture resource.  
+4. 
+MostDetailedMip: Specifies the index of the most detailed mipmap level to 
+view. This will be a number between 0 and MipCount-1.
+5. MipLevels: The number of mipmap levels to view, starting at MostDetailedMip. 
+This field, along with MostDetailedMip allows us to specify a subrange of 
+--- Page 404 ---
+370 DIRECT 3D FOUNDATIONS
+mipmap levels to view. Y ou can specify -1 to indicate to view all mipmap levels 
+from MostDetailedMip down to the last mipmap level.
+6. PlaneSlice: Plane index.
+7. ResourceMinLODClamp: Specifies the minimum mipmap level that can be 
+accessed. 0.0 means all the mipmap levels can be accessed. Specifying 3.0 
+means mipmap levels 3.0 to MipCount-1 can be accessed.
+The following populates the heap we created in the previous section with actual 
+descriptors to three resources:
+// Suppose the following texture resources are already created.
+// ID3D12Resource* bricksTex;
+// ID3D12Resource* stoneTex;
+// ID3D12Resource* tileTex;
+// Get pointer to the start of the heap.
+CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(
+  mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+srvDesc.Format = bricksTex->GetDesc().Format;
+srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+srvDesc.Texture2D.MostDetailedMip = 0;
+srvDesc.Texture2D.MipLevels = bricksTex->GetDesc().MipLevels;
+srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+md3dDevice->CreateShaderResourceView(bricksTex.Get(), &srvDesc, hDescriptor);
+// offset to next descriptor in heap
+hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+srvDesc.Format = stoneTex->GetDesc().Format;
+srvDesc.Texture2D.MipLevels = stoneTex->GetDesc().MipLevels;
+md3dDevice->CreateShaderResourceView(stoneTex.Get(), &srvDesc, hDescriptor);
+// offset to next descriptor in heap
+hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+srvDesc.Format = tileTex->GetDesc().Format;
+srvDesc.Texture2D.MipLevels = tileTex->GetDesc().MipLevels;
+md3dDevice->CreateShaderResourceView(tileTex.Get(), &srvDesc, hDescriptor);
+9.4.4 Binding Textures to the Pipeline
+Right now we specify materials per draw call by changing the material constant 
+buffer. This means that all geometry in the draw call will have the same material 
+values. This is quite limited as we cannot specify per pixel material variations so 
+our scenes lack detail. The idea of texturing mapping is to get the material data 
+from texture maps instead of the material constant buffer. This allows for per 
+--- Page 405 ---
+TEXTURING  371
+pixel variation which increases the details and realism of our scene, as Figure 9.1 
+showed. 
+In this chapter, we add a diffuse albedo texture map to specify the diffuse 
+albedo component of our material. The FresnelR0 and Roughness material values 
+will still be speciﬁ  ed at the per draw call frequency via the material constant 
+buffer; however, in the chapter on “Normal Mapping” we will describe how to use 
+texturing to specify roughness at a per-pixel level. Note that with texturing we will 
+still keep the 
+DiffuseAlbedo component in the material constant buffer. In fact, we 
+will combine it with the texture diffuse albedo value in the following way in the 
+pixel-shader:
+// Get diffuse albedo at this pixel from texture.
+float4 texDiffuseAlbedo = gDiffuseMap.Sample(
+  gsamAnisotropicWrap, pin.TexC);
+// Multiple texture sample with constant buffer albedo.
+float4 diffuseAlbedo = texDiffuseAlbedo * gDiffuseAlbedo;
+Usually, we will set DiffuseAlbedo=(1,1,1,1) so that to does not modify 
+texDiffuseAlbedo. However, sometimes it is useful to slightly tweak the diffuse 
+albedo without having to author a new texture. For example, suppose we had a brick 
+texture and an artist wanted to slightly tint it blue. This could be accomplished by 
+reducing the red and green components by setting 
+DiffuseAlbedo=(0.9,0.9,1,1). 
+We add an index to our material deﬁ  nition, which references an SRV in the 
+descriptor heap specifying the texture associated with the material:
+struct Material
+{
+  ...
+  // Index into SRV heap for diffuse texture.
+  int DiffuseSrvHeapIndex = -1;
+  ...
+};
+Then, assuming the root signature has been defined to expect a table of shader 
+resource views to be bound to the 0th slot parameter, we can draw our render 
+items with texturing using the following code:
+void CrateApp::DrawRenderItems(
+  ID3D12GraphicsCommandList* cmdList, 
+  const std::vector<RenderItem*>& ritems)
+{
+  UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(Objec
+tConstants));
+  UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(Mater
+ialConstants));
+ 
+--- Page 406 ---
+372 DIRECT 3D FOUNDATIONS
+  auto objectCB = mCurrFrameResource->ObjectCB->Resource();
+  auto matCB = mCurrFrameResource->MaterialCB->Resource();
+  // For each render item...
+  for(size_t i = 0; i < ritems.size(); ++i)
+  {
+    auto ri = ritems[i];
+    cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
+    cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+    cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE tex(
+      mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+    tex.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
+    D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = 
+      objectCB->GetGPUVirtualAddress() + 
+      ri->ObjCBIndex*objCBByteSize;
+    D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = 
+      matCB->GetGPUVirtualAddress() + 
+      ri->Mat->MatCBIndex*matCBByteSize;
+    cmdList->SetGraphicsRootDescriptorTable(0, tex);
+    cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
+    cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
+    cmdList->DrawIndexedInstanced(ri->IndexCount, 
+      1, ri->StartIndexLocation, 
+      ri->BaseVertexLocation, 0);
+  }
+}
+A texture resource can actually be used by any shader (vertex, geometry, or pixel 
+shader). For now, we will just be using them in pixel shaders. As we mentioned, 
+textures are essentially special arrays that support special operations on the 
+GPU, so it is not hard to imagine that they could be useful in other shader 
+programs, too.
+Texture atlases can improve performance because it can lead to drawing more 
+geometry with one draw call. For example, suppose we used the texture atlas as 
+in Figure 9.4 that contains the crate, grass, and brick textures. Then, by adjusting 
+the texture coordinates for each object to its corresponding subtexture, we could 
+put all the geometry in one render item (assuming no other parameters needed 
+to be changed per object). There is ove rhead to draw calls, so it is desirable to 
+minimize them with techniques like this, although we note that the overhead 
+has signiﬁ cantly been reduced with Direct3D 12 compared to earlier versions of 
+Direct3D.   
+Note:
+Note:
+--- Page 407 ---
+TEXTURING  373
+9.5 FILTERS
+9.5.1 Magniﬁ cation
+The elements of a texture map should be thought of as discrete color samples 
+from a continuous image; they should not be thought of as rectangles with areas. 
+So the question is: What happens if we have texture coordinates (u, v) that do not 
+coincide with one of the texel points? This can happen in the following situation. 
+Suppose the player zooms in on a wall in the scene so that the wall covers the entire 
+screen. For the sake of example, suppose the monitor resolution is 1024  1024 and 
+the wall’s texture resolution is 256  256. This illustrates texture magnification—
+we are trying to cover many pixels with a few texels. In our example, between 
+every texel point lies four pixels. Each pixel will be given a pair of unique texture 
+coordinates when the vertex texture coordinates are interpolated across the 
+triangle. Thus there will be pixels with texture coordinates that do not coincide 
+with one of the texel points. Given the colors at the texels we can approximate the 
+colors between texels using interpolation. There are two methods of interpolation 
+graphics hardware supports: constant interpolation and linear interpolation. In 
+practice, linear interpolation is almost always used.
+Figure 9.5 illustrates these methods in 1D: Suppose we have a 1D texture 
+with 256 samples and an interpolated texture coordinate u  0.126484375. This 
+normalized texture coordinate refers to the  0.126484375  256  32.38 texel. 
+Of course, this value lies between two of our texel samples, so we must use 
+interpolation to approximate it.
+2D linear interpolation is called bilinear int erpolation and is illustrated in 
+Figure 9.6. Given a pair of texture coordinates between four texels, we do two 1D 
+linear interpolations in the u-direction, followed by one 1D interpolation in the 
+v-direction.
+Figure 9.7 shows the difference between constant and linear interpolation. 
+As you can see, constant interpolation has the characteristic of creating a blocky 
+ 
+Figure 9.5. (a) Given the texel points, we construct a piecewise constant function to approximate values 
+between the texel points; this is sometimes called nearest neighbor point sampling, as the value of the nearest 
+texel point is used. (b) Given the texel points, we construct a piecewise linear function to approximate values 
+between texel points.
+--- Page 408 ---
+374 DIRECT 3D FOUNDATIONS
+looking image. Linear interpolation is smoother, but still will not look as good as 
+if we had real data (e.g., a higher resolution texture) instead of derived data via 
+interpolation.
+One thing to note about this discussion is that there is no real way to get around 
+magniﬁ cation in an interactive 3D program where the virtual eye is free to move 
+around and explore. From some distances, the textures will look great, but will 
+start to break down as the eye gets too close to them. Some games limit how close 
+the virtual eye can get to a surface to avoid excessive magniﬁ cation. Using higher 
+resolution textures can help. 
+In the context of texturing, using constant interpolation to ﬁ  nd texture values 
+for texture coordinates between texels is also called point ﬁ ltering. And using 
+linear interpolation to ﬁ nd texture values for texture coordinates between texels 
+is also called called linear ﬁ ltering. Point and linear ﬁ ltering is the terminology 
+Direct3D uses.
+Note:
+Figure 9.6. Here we have four texel points: cij, ci, j + 1, ci + 1, j, and ci + 1, j + 1. We want to approximate the color 
+of c, which lies between these four texel points, using interpolation; in this example, c lies 0.75 units to the 
+right of cij and 0.38 units below cij. We first do a 1D linear interpolation between the top two colors to get 
+cT. Likewise, we do a 1D linear interpolate between the bottom two colors to get cB. Finally, we do a 1D 
+linear interpolation between cT and cB to get c.
+Figure 9.7. We zoom in on a cube with a crate texture so that magnification occurs. On the left we use 
+constant interpolation, which results in a blocky appearance; this makes sense because the interpolating 
+function has discontinuities (Figure 9.5a), which makes the changes abrupt rather than smooth. On the right 
+we use linear filtering, which results in a smoother image due to the continuity of the interpolating function.
+--- Page 409 ---
+TEXTURING  375
+9.5.2 Miniﬁ cation
+Minification is the opposite of magnification. In minification, too many texels 
+are being mapped to too few pixels. For instance, consider the following situation 
+where we have a wall with a 256 
+ 256 texture mapped over it. The eye, looking at 
+the wall, keeps moving back so that the wall gets smaller and smaller until it only 
+covers 64 × 64 pixels on screen. So now we have 256 × 256 texels getting mapped 
+to 64 × 64 screen pixels. In this situation, texture coordinates for pixels will still 
+generally not coincide with any of the texels of the texture map, so constant 
+and linear interpolation filters still apply to the minification case. However, 
+there is more that can be done with minification. Intuitively, a sort of average 
+downsampling of the 256 × 256 texels should be taken to reduce it to 64 × 64. 
+The technique of mipmapping offers an efficient approximation for this at the 
+expense of some extra memory. At init ialization time (or asset creation time), 
+smaller versions of the texture are made by downsampling the image to create 
+a mipmap chain (see Figure 9.8). Thus the averaging work is precomputed for 
+the mipmap sizes. At runtime, the graphics hardware will do two different things 
+based on the mipmap settings specified by the programmer:
+1. Pick and use the mipmap level that best matches the projected screen geometry 
+resolution for texturing, applying constant or linear interpolation as needed. This 
+is called point filtering for mipmaps because it is like constant interpolation—you 
+just choose the nearest mipmap level and use that for texturing.
+2. Pick the two nearest mipmap levels that best match the projected screen 
+geometry resolution for texturing (one will be bigger and one will be smaller 
+than the screen geometry resolution). Next, apply constant or linear filtering 
+to both of these mipmap levels to produce a texture color for each one. 
+Finally, interpolate between these two texture color results. This is called  
+linear filtering  for mipmaps because it is like linear interpolation—you 
+linearly interpolate between the two nearest mipmap levels.  
+By choosing the best texture levels of detail from the mipmap chain, the amount 
+of minification is greatly reduced. 
+Figure 9.8. A chain of mipmaps; each successive mipmap is half the size, in each dimension, of the previous 
+mipmap level of detail down to 1 × 1.
+--- Page 410 ---
+376 DIRECT 3D FOUNDATIONS
+As mentioned in §9.3.2, mipmaps can be created using the Photoshop DDS exporter 
+plugin, or using the texconv program. These programs use a downsampling 
+algorithm to generate the lower mipmap levels from the base image data. 
+Sometimes these algorithms do not preserve the details we want and an artist has 
+to manually create/edit the lower mipmap levels to keep the important details.
+9.5.3 Anisotropic Filtering
+Another type of filter that can be used is called anisotropic filtering. This filter helps 
+alleviate the distortion that occurs when the angle between a polygon’s normal 
+vector and camera’s look vector is wide (e.g., when a polygon is orthogonal to 
+the view window). This filter is the most expensive, but can be worth the cost 
+for correcting the distortion artifacts. Figure 9.9 shows a screenshot comparing 
+anisotropic filtering with linear filtering. 
+9.6 ADDRESS MODES
+A texture, combined with constant or linear interpolation, defines a vector-
+valued function T(u, v)  (r, g, b, a). That is, given the texture coordinates (u, v)  
+[0, 1]
+2 the texture function T returns a color ( r, g, b, a). Direct3D allows us to 
+extend the domain of this function in four different ways (called address modes): 
+wrapbordercolorclamp and mirror.
+1. wrap extends the texture function by repeating the image at every integer 
+junction (see Figure 9.10). 
+2. border color extends the texture function by mapping each (u, v) not in [0, 1]2 
+to some color specified by the programmer (see Figure 9.11). 
+3. clamp extends the texture function by mapping each (u, v) not in [0, 1]2 to the 
+color T(u0, v0), where (u0, v0) is the nearest point to (u, v) contained in [0, 1]2 
+(see Figure 9.12).
+4. mirror extends the texture function by mirroring the image at every integer 
+junction (see Figure 9.13).
+Note:
+Figure 9.9. The top face of the crate is nearly orthogonal to the view window. (Left) Using linear filtering the 
+top of the crate is badly blurred. (Right) Anisotropic filtering does a better job at rendering the top face of 
+the crate from this angle.
+--- Page 411 ---
+TEXTURING  377
+Figure 9.10. Wrap address mode.
+Figure 9.11. Border color address mode.
+Figure 9.12. Clamp address mode.
+Figure 9.13. Mirror address mode.
+--- Page 412 ---
+378 DIRECT 3D FOUNDATIONS
+An address mode is always speciﬁ ed (wrap mode is the default), so therefore, 
+texture coordinates outside the [0, 1] range are always deﬁ ned. 
+The wrap address mode is probably the most often employed; it allows us to 
+tile a texture repeatedly over some surface. This effectively enables us to increase 
+the texture resolution without supplying additional data (although the extra 
+resolution is repetitive). With tiling, it is usually important that the texture 
+is seamless. For example, the crate texture is not seamless, as you can see the 
+repetition clearly. However, Figure 9.14 shows a seamless brick texture repeated 
+2  3 times. 
+Address modes are described in Direct3D via the 
+D3D12_TEXTURE_ADDRESS_MODE 
+enumerated type: 
+typedef enum D3D12_TEXTURE_ADDRESS_MODE
+{
+  D3D12_TEXTURE_ADDRESS_MODE_WRAP        = 1,
+  D3D12_TEXTURE_ADDRESS_MODE_MIRROR      = 2,
+  D3D12_TEXTURE_ADDRESS_MODE_CLAMP       = 3,
+  D3D12_TEXTURE_ADDRESS_MODE_BORDER      = 4,
+  D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE = 5
+} D3D12_TEXTURE_ADDRESS_MODE;
+9.7 SAMPLER OBJECTS
+From the previous two sections, we see that in addition to texture data, there are 
+two other key concepts involved with using textures: texture filtering and address 
+Figure 9.14. A brick texture tiled 2 × 3 times. Because the texture is seamless, the repetition pattern is 
+harder to notice.
+--- Page 413 ---
+TEXTURING  379
+modes. What filter and address mode to use when sampling a texture resource 
+is defined by a sampler object. An application will usually need several sampler 
+objects to sample textures in different ways. 
+9.7.1 Creating Samplers
+As we will see in the next section, samplers are used in shaders. In order to bind 
+samplers to shaders for use, we need to bind descriptors to sampler objects. The 
+following code shows an example root signature such that the second slot takes a 
+table of one sampler descriptor bound to sampler register slot 0.
+CD3DX12_DESCRIPTOR_RANGE descRange[3];
+descRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+descRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
+descRange[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+CD3DX12_ROOT_PARAMETER rootParameters[3];
+rootParameters[0].InitAsDescriptorTable(1, &descRange[0], D3D12_SHADER_
+VISIBILITY_PIXEL);
+rootParameters[1].InitAsDescriptorTable(1, &descRange[1], D3D12_SHADER_
+VISIBILITY_PIXEL);
+rootParameters[2].InitAsDescriptorTable(1, &descRange[2], D3D12_SHADER_
+VISIBILITY_ALL);
+CD3DX12_ROOT_SIGNATURE_DESC descRootSignature;
+descRootSignature.Init(3, rootParameters, 0, nullptr,
+  D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+If we are going to be setting sampler descriptors, we need a sampler heap. A 
+sampler heap is created by filling out a D3D12_DESCRIPTOR_HEAP_DESC instance and 
+specifying the heap type D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+D3D12_DESCRIPTOR_HEAP_DESC descHeapSampler = {};
+descHeapSampler.NumDescriptors = 1;
+descHeapSampler.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+descHeapSampler.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+ComPtr<ID3D12DescriptorHeap> mSamplerDescriptorHeap;
+ThrowIfFailed(mDevice->CreateDescriptorHeap(&descHeapSampler,
+  __uuidof(ID3D12DescriptorHeap), 
+  (void**)&mSamplerDescriptorHeap));
+Once we have a sampler heap, we can create sampler descriptors. It is here that we 
+specify the address mode and filter type, as well as other parameters by filling out 
+a 
+D3D12_SAMPLER_DESC object:
+typedef struct D3D12_SAMPLER_DESC
+{
+  D3D12_FILTER Filter;
+  D3D12_TEXTURE_ADDRESS_MODE AddressU;
+  D3D12_TEXTURE_ADDRESS_MODE AddressV;
+--- Page 414 ---
+380 DIRECT 3D FOUNDATIONS
+  D3D12_TEXTURE_ADDRESS_MODE AddressW;
+  FLOAT MipLODBias;
+  UINT MaxAnisotropy;
+  D3D12_COMPARISON_FUNC ComparisonFunc;
+  FLOAT BorderColor[ 4 ];
+  FLOAT MinLOD;
+  FLOAT MaxLOD;
+} D3D12_SAMPLER_DESC;
+1. Filter: A member of the D3D12_FILTER enumerated type to specify the kind of 
+filtering to use. 
+2. AddressU: The address mode in the horizontal u-axis direction of the texture.
+3. AddressV: The address mode in the vertical v-axis direction of the texture.
+4. AddressW: The address mode in the depth w-axis direction of the texture 
+(applicable to 3D textures only).
+5. MipLODBias: A value to bias the mipmap level picked. Specify 0.0 for no bias. 
+6. MaxAnisotropy: The maximum anisotropy value which must be between 1-16 
+inclusively. This is only applicable for D3D12_FILTER_ANISOTROPIC or D3D12_
+FILTER_COMPARISON_ANISOTROPIC. Larger values are more expensive, but can 
+give better results. 
+7. ComparisonFunc: Advanced options used for some specialized applications like 
+shadow mapping. For now, just set to D3D12_COMPARISON_FUNC_ALWAYS until the 
+shadow mapping chapter.
+8. BorderColor: Used to specify the border color for address mode D3D12_
+TEXTURE_ADDRESS_MODE_BORDER.
+9. MinLOD: Minimum mipmap level that can be selected.
+10. MaxLOD: Maximum mipmap level that can be selected.
+Below are some examples of commonly used D3D12_FILTER types:
+1. D3D12_FILTER_MIN_MAG_MIP_POINT: Point filtering over a texture map, and 
+point filtering across mipmap levels (i.e., the nearest mipmap level is used).
+2. D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT: Bilinear filtering over a texture 
+map, and point filtering across mipmap levels (i.e., the nearest mipmap level 
+is used).
+3. 
+D3D12_FILTER_MIN_MAG_MIP_LINEAR: Bilinear filtering over a texture 
+map, and linear filtering between the two nearest lower and upper mipmap 
+levels. This is often called trilinear filtering.
+4. 
+D3D12_FILTER_ANISOTROPIC: Anisotropic filtering for minification, 
+magnification, and mipmapping.
+--- Page 415 ---
+TEXTURING  381
+Y ou can figure out the other possible permutations from these examples, or you 
+can look up the D3D12_FILTER  enumerated type in the SDK documentation. 
+The following example shows how to create a descriptor to a sampler in the 
+heap that uses linear ﬁ ltering, wrap address mode, and typical default values for 
+the other parameters:
+D3D12_SAMPLER_DESC samplerDesc = {};
+samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+samplerDesc.MinLOD = 0;
+samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+samplerDesc.MipLODBias = 0.0f;
+samplerDesc.MaxAnisotropy = 1;
+samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+md3dDevice->CreateSampler(&samplerDesc, 
+  mSamplerDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+The following code shows how to bind a sampler descriptor to a root signature 
+parameter slot for use by the shader programs:
+commandList->SetGraphicsRootDescriptorTable(1, 
+  samplerDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+9.7.2 Static Samplers
+It turns out that a graphics application usually only uses a handful of samplers. 
+Therefore, Direct3D provides a special shortcut to define an array of samplers 
+and set them without going through the process of creating a sampler heap. The 
+Init function of the CD3DX12_ROOT_SIGNATURE_DESC  class has two parameters that 
+allow you to define an array of so-called static samplers your application can use. 
+Static samplers are described by the 
+D3D12_STATIC_SAMPLER_DESC  structure. This 
+structure is very similar to D3D12_SAMPLER_DESC , with the following exceptions: 
+1. There are some limitations on what the bo rder color can be. Specifically, the 
+border color of a static sampler must be a member of:
+enum D3D12_STATIC_BORDER_COLOR
+{
+  D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK = 0,
+  D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK = ( 
+    D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK + 1 ) ,
+  D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE = ( 
+    D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK + 1 ) 
+}D3D12_STATIC_BORDER_COLOR;
+2. It contains additional fields to specify the shader register, register space, and 
+shader visibility, which would normally be specified as part of the sampler heap. 
+--- Page 416 ---
+382 DIRECT 3D FOUNDATIONS
+In addition, you can only define 2032 number of static samplers, which is more 
+than enough for most applications. If you do need more, however, you can just 
+use non-static samplers and go through a sampler heap. 
+We use static samplers in our demos. The following code shows how we deﬁ ne 
+our static samplers. Note that we do not need all these static samplers in our 
+demos, but we deﬁ ne them anyway so that they are there if we do need them. It 
+is only a handful anyway, and it does not hurt to deﬁ ne a few extra samplers that 
+may or may not be used. 
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> 
+  TexColumnsApp::GetStaticSamplers()
+{
+  // Applications usually only need a handful of samplers. So just 
+define them 
+  // all up front and keep them available as part of the root 
+signature. 
+  const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
+    0, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+  const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+    1, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+  const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+    2, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+  const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+    3, // shaderRegister
+    D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+  const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+    4, // shaderRegister
+    D3D12_FILTER_ANISOTROPIC, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressW
+    0.0f,               // mipLODBias
+--- Page 417 ---
+TEXTURING  383
+    8);                // maxAnisotropy
+  const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
+    5, // shaderRegister
+    D3D12_FILTER_ANISOTROPIC, // filter
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressW
+    0.0f,               // mipLODBias
+    8);                // maxAnisotropy
+  return { 
+    pointWrap, pointClamp,
+    linearWrap, linearClamp, 
+    anisotropicWrap, anisotropicClamp };
+}
+void TexColumnsApp::BuildRootSignature()
+{
+  CD3DX12_DESCRIPTOR_RANGE texTable;
+  texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+  // Root parameter can be a table, root descriptor or root constants.
+  CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+  slotRootParameter[0].InitAsDescriptorTable(1, 
+    &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+  slotRootParameter[1].InitAsConstantBufferView(0);
+  slotRootParameter[2].InitAsConstantBufferView(1);
+  slotRootParameter[3].InitAsConstantBufferView(2);
+  auto staticSamplers = GetStaticSamplers();
+  // A root signature is an array of root parameters.
+  CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
+    (UINT)staticSamplers.size(), staticSamplers.data(),
+    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+  // create a root signature with a single slot which points to a
+  // descriptor range consisting of a single constant buffer
+  ComPtr<ID3DBlob> serializedRootSig = nullptr;
+  ComPtr<ID3DBlob> errorBlob = nullptr;
+  HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_
+SIGNATURE_VERSION_1,
+    serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+  if(errorBlob != nullptr)
+  {
+    ::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+  }
+  ThrowIfFailed(hr);
+  ThrowIfFailed(md3dDevice->CreateRootSignature(
+    0,
+    serializedRootSig->GetBufferPointer(),
+--- Page 418 ---
+384 DIRECT 3D FOUNDATIONS
+    serializedRootSig->GetBufferSize(),
+    IID_PPV_ARGS(mRootSignature.GetAddressOf())));
+}
+9.8 SAMPLING TEXTURES IN A SHADER
+A texture object is defined in HLSL and assigned to a texture register with the 
+following syntax:
+Texture2D gDiffuseMap : register(t0);
+Note that texture registers use specified by tn where n is an integer identifying the 
+texture register slot. The root signature definition specifies the mapping from slot 
+parameter to shader register; this is how the application code can bind an SRV to a 
+particular 
+Texture2D object in a shader.
+Similarly, sampler objects are deﬁ ned HLSL and assigned to a sampler register 
+with the following syntax:
+SamplerState gsamPointWrap    : register(s0);
+SamplerState gsamPointClamp    : register(s1);
+SamplerState gsamLinearWrap    : register(s2);
+SamplerState gsamLinearClamp   : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
+These samplers correspond to the static sampler array we set in the previous 
+section. Note that texture registers use specified by sn where n is an integer 
+identifying the sampler register slot. 
+Now, given a pair of texture coordinate (u, v) for a pixel in the pixel shader, we 
+actually sample a texture using the 
+Texture2D::Sample method:
+Texture2D gDiffuseMap : register(t0);
+SamplerState gsamPointWrap    : register(s0);
+SamplerState gsamPointClamp    : register(s1);
+SamplerState gsamLinearWrap    : register(s2);
+SamplerState gsamLinearClamp   : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
+struct VertexOut
+{
+  float4 PosH  : SV_POSITION;
+  float3 PosW  : POSITION;
+  float3 NormalW : NORMAL;
+  float2 TexC  : TEXCOORD;
+};
+float4 PS(VertexOut pin) : SV_Target
+--- Page 419 ---
+TEXTURING  385
+{
+  float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.
+TexC) * gDiffuseAlbedo;
+  ...
+We pass a SamplerState object for the first parameter indicating how the texture 
+data will be sampled, and we pass in the pixel’s ( u, v) texture coordinates for the 
+second parameter. This method returns the interpolated color from the texture 
+map at the specified ( u, v) point using the filtering methods specified by the 
+SamplerState object.
+9.9 CRATE DEMO
+We now review the key points of adding a crate texture to a cube (as shown in 
+Figure 9.1). 
+9.9.1 Specifying Texture Coordinates
+The GeometryGenerator::CreateBox generates the texture coordinates for the box 
+so that the entire texture image is mapped onto each face of the box. For brevity, 
+we only show the vertex definitions for the front, back, and top face. Note also 
+that we omit the coordinates for the normal and tangent vectors in the 
+Vertex 
+constructor (the texture coordinates are bolded).
+GeometryGenerator::MeshData GeometryGenerator::CreateBox(
+  float width, float height, float depth, 
+  uint32 numSubdivisions)
+{
+  MeshData meshData;
+  Vertex v[24];
+  float w2 = 0.5f*width;
+  float h2 = 0.5f*height;
+  float d2 = 0.5f*depth;
+  
+  // Fill in the front face vertex data.
+  v[0] = Vertex(-w2, -h2, -d2, ..., 0.0f, 1.0f);
+  v[1] = Vertex(-w2, +h2, -d2, ..., 0.0f, 0.0f);
+  v[2] = Vertex(+w2, +h2, -d2, ..., 1.0f, 0.0f);
+  v[3] = Vertex(+w2, -h2, -d2, ..., 1.0f, 1.0f);
+  // Fill in the back face vertex data.
+  v[4] = Vertex(-w2, -h2, +d2, ..., 1.0f, 1.0f);
+  v[5] = Vertex(+w2, -h2, +d2, ..., 0.0f, 1.0f);
+  v[6] = Vertex(+w2, +h2, +d2, ..., 0.0f, 0.0f);
+  v[7] = Vertex(-w2, +h2, +d2, ..., 1.0f, 0.0f);
+--- Page 420 ---
+386 DIRECT 3D FOUNDATIONS
+  // Fill in the top face vertex data.
+  v[8] = Vertex(-w2, +h2, -d2, ..., 0.0f, 1.0f);
+  v[9] = Vertex(-w2, +h2, +d2, ..., 0.0f, 0.0f);
+  v[10] = Vertex(+w2, +h2, +d2, ..., 1.0f, 0.0f);
+  v[11] = Vertex(+w2, +h2, -d2, ..., 1.0f, 1.0f);
+Refer back to Figure 9.3 if you need help seeing why the texture coordinates are 
+specified this way.
+9.9.2 Creating the Texture
+We create the texture from file at initialization time as follows:
+// Helper structure to group data related to the texture.
+struct Texture
+{
+  // Unique material name for lookup.
+  std::string Name;
+  std::wstring Filename;
+  Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
+  Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
+};
+std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
+void CrateApp::LoadTextures()
+{
+  auto woodCrateTex = std::make_unique<Texture>();
+  woodCrateTex->Name = "woodCrateTex";
+  woodCrateTex->Filename = L"Textures/WoodCrate01.dds";
+  ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+    mCommandList.Get(), woodCrateTex->Filename.c_str(),
+    woodCrateTex->Resource, woodCrateTex->UploadHeap));
+ 
+  mTextures[woodCrateTex->Name] = std::move(woodCrateTex);
+}
+We store all of our unique textures in an unordered map so that we can look them 
+up by name. In production code, before loading a texture, you would want to 
+check if the texture data has already been loaded (i.e., is it already contained in the 
+unordered map) so that it does not get loaded multiple times. 
+9.9.3 Setting the Texture
+Once a texture has been created and an SRV has been created for it in a descriptor 
+heap, binding the texture to the pipeline so that it can be used in shader programs is 
+simply a matter of setting it to the root signature parameter that expects the texture: 
+// Get SRV to texture we want to bind.
+--- Page 421 ---
+TEXTURING  387
+CD3DX12_GPU_DESCRIPTOR_HANDLE tex(
+mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+tex.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
+...
+// Bind to root parameter 0. The root parameter description specifies 
+which 
+// shader register slot this corresponds to.
+cmdList->SetGraphicsRootDescriptorTable(0, tex);
+9.9.4 Updated HLSL
+Below is the revised Default.hlsl file that now supports texturing (texturing code 
+has been bolded):
+// Defaults for number of lights.
+#ifndef NUM_DIR_LIGHTS
+  #define NUM_DIR_LIGHTS 3
+#endif
+#ifndef NUM_POINT_LIGHTS
+  #define NUM_POINT_LIGHTS 0
+#endif
+#ifndef NUM_SPOT_LIGHTS
+  #define NUM_SPOT_LIGHTS 0
+#endif
+// Include structures and functions for lighting.
+#include "LightingUtil.hlsl"
+Texture2D  gDiffuseMap : register(t0);
+SamplerState gsamPointWrap    : register(s0);
+SamplerState gsamPointClamp    : register(s1);
+SamplerState gsamLinearWrap    : register(s2);
+SamplerState gsamLinearClamp   : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
+// Constant data that varies per frame.
+cbuffer cbPerObject : register(b0)
+{
+  float4x4 gWorld;
+  float4x4 gTexTransform;
+};
+// Constant data that varies per material.
+cbuffer cbPass : register(b1)
+{
+  float4x4 gView;
+--- Page 422 ---
+388 DIRECT 3D FOUNDATIONS
+  float4x4 gInvView;
+  float4x4 gProj;
+  float4x4 gInvProj;
+  float4x4 gViewProj;
+  float4x4 gInvViewProj;
+  float3 gEyePosW;
+  float cbPerObjectPad1;
+  float2 gRenderTargetSize;
+  float2 gInvRenderTargetSize;
+  float gNearZ;
+  float gFarZ;
+  float gTotalTime;
+  float gDeltaTime;
+  float4 gAmbientLight;
+  // Indices [0, NUM_DIR_LIGHTS) are directional lights;
+  // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are 
+point lights;
+  // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS,
+  //     NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
+  // are spot lights for a maximum of MaxLights per object.
+  Light gLights[MaxLights];
+};
+cbuffer cbMaterial : register(b2)
+{
+  float4  gDiffuseAlbedo;
+  float3  gFresnelR0;
+  float  gRoughness;
+  float4x4 gMatTransform;
+};
+struct VertexIn
+{
+  float3 PosL  : POSITION;
+  float3 NormalL : NORMAL;
+  float2 TexC  : TEXCOORD;
+};
+struct VertexOut
+{
+  float4 PosH  : SV_POSITION;
+  float3 PosW  : POSITION;
+  float3 NormalW : NORMAL;
+  float2 TexC  : TEXCOORD;
+};
+VertexOut VS(VertexIn vin)
+{
+  VertexOut vout = (VertexOut)0.0f;
+ 
+  // Transform to world space.
+  float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
+  vout.PosW = posW.xyz;
+--- Page 423 ---
+TEXTURING  389
+  // Assumes nonuniform scaling; otherwise, need to use 
+  // inverse-transpose of world matrix.
+  vout.NormalW = mul(vin.NormalL, (float3x3)gWorld);
+  // Transform to homogeneous clip space.
+  vout.PosH = mul(posW, gViewProj);
+ 
+  // Output vertex attributes for interpolation across triangle.
+  float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
+  vout.TexC = mul(texC, gMatTransform).xy;
+ 
+  return vout;
+}
+float4 PS(VertexOut pin) : SV_Target
+{
+  float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.
+TexC) * gDiffuseAlbedo;
+ 
+  // Interpolating normal can unnormalize it, so renormalize it.
+  pin.NormalW = normalize(pin.NormalW);
+  // Vector from point being lit to eye. 
+  float3 toEyeW = normalize(gEyePosW - pin.PosW);
+  // Light terms.
+  float4 ambient = gAmbientLight*diffuseAlbedo;
+  const float shininess = 1.0f - gRoughness;
+  Material mat = { diffuseAlbedo, gFresnelR0, shininess };
+  float3 shadowFactor = 1.0f;
+  float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
+    pin.NormalW, toEyeW, shadowFactor);
+  float4 litColor = ambient + directLight;
+  // Common convention to take alpha from diffuse albedo.
+  litColor.a = diffuseAlbedo.a;
+  return litColor;
+}
+9.10 TRANSFORMING TEXTURES
+Two constant buffer variables we have not discussed are gTexTransform and 
+gMatTransform. These variables are used in the vertex shader to transform the 
+input texture coordinates:
+// Output vertex attributes for interpolation across triangle.
+float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
+vout.TexC = mul(texC, gMatTransform).xy;
+--- Page 424 ---
+390 DIRECT 3D FOUNDATIONS
+T exture coordinates represent 2D points in the texture plane. Thus, we can 
+translate, rotate, and scale them like we could any other point. Here are some 
+example uses for transforming textures:
+1. A brick texture is stretched along a wall. The wall vertices currently have 
+texture coordinates in the range [0, 1]. We scale the texture coordinates by 4 to 
+scale them to the range [0, 4], so that the texture will be repeated four-by-four 
+times across the wall.
+2. We have cloud textures stretches over a clear blue sky. By translating the 
+texture coordinates as a function of time, the clouds are animated over the sky. 
+3. Texture rotation is sometimes useful for particle like effects, where we rotate a 
+fireball texture over time, for example. 
+In the “Crate” demo, we use an identity matrix transformation so that the input 
+texture coordinates are left unmodified, but in the next section we explain a demo 
+that does use texture transforms. 
+Note that to transform the 2D texture coordinates by a 4 × 4 matrix, we 
+augment it to a 4D vector:
+vin.TexC ---> float4(vin.Tex, 0.0f, 1.0f)
+After the multiplication is done, the resulting 4D vector is cast back to a 2D vector 
+by throwing away the z- and w-components. That is, 
+vout.TexC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform).xy;
+We use two separate texture transformation matrices gTexTransform and 
+gMatTransform because sometimes it makes more sense for the material to 
+transform the textures (for animated materials like water), but sometimes it 
+makes more sense for the texture transform to be a property of the object.
+Because we are working with 2D texture coordinates, we only care about 
+transformations done to the ﬁ  rst two coordinates. For instance, if the texture 
+matrix translated the z-coordinate, it would have no effect on the resulting texture 
+coordinates.
+9.11 TEXTURED HILLS AND WAVES DEMO
+In this demo, we add textures to our land and water scene. The first key issue is 
+that we tile a grass texture over the land. Because the land mesh is a large surface, if 
+we simply stretched a texture over it, then too few texels would cover each triangle. 
+In other words, there is not enough texture resolution for the surface; we would 
+thus get magnification artifacts. Therefor e, we repeat the grass texture over the 
+--- Page 425 ---
+TEXTURING  391
+land mesh to get more resolution. The second key issue is that we scroll the water 
+texture over the water geometry as a function of time. This added motion makes 
+the water a bit more convincing. Figure 9.15 shows a screenshot of the demo. 
+9.11.1 Grid Texture Coordinate Generation
+Figure 9.16 shows an m  n grid in the xz-plane and a corresponding grid in the 
+normalized texture space domain [0, 1] 2. From the picture, it is clear that the 
+texture coordinates of the ijth grid vertex in the xz-plane are the coordinates of 
+the ijth grid vertex in the texture space. The texture space coordinates of the ijth 
+vertex are:
+ ijuj u 
+ ijvi v 
+where 1
+1u n   and 1
+1v m  . 
+Figure 9.15. Screenshot of the Land Tex demo.
+Figure 9.16. The texture coordinates of the grid vertex vij in xz-space are given by the ijth grid vertex Tij in 
+uv-space.
+--- Page 426 ---
+392 DIRECT 3D FOUNDATIONS
+Thus, we use the following code to generate texture coordinates for a grid in the 
+GeometryGenerator::CreateGrid method:
+GeometryGenerator::MeshData 
+GeometryGenerator::CreateGrid(float width, float depth, uint32 m, uint32 n)
+{
+  MeshData meshData;
+  uint32 vertexCount = m*n;
+  uint32 faceCount  = (m-1)*(n-1)*2;
+  float halfWidth = 0.5f*width;
+  float halfDepth = 0.5f*depth;
+  float dx = width / (n-1);
+  float dz = depth / (m-1);
+  float du = 1.0f / (n-1);
+  float dv = 1.0f / (m-1);
+  meshData.Vertices.resize(vertexCount);
+  for(uint32 i = 0; i < m; ++i)
+  {
+    float z = halfDepth - i*dz;
+    for(uint32 j = 0; j < n; ++j)
+    {
+      float x = -halfWidth + j*dx;
+      meshData.Vertices[i*n+j].Position = XMFLOAT3(x, 0.0f, z);
+      meshData.Vertices[i*n+j].Normal  = XMFLOAT3(0.0f, 1.0f, 0.0f);
+      meshData.Vertices[i*n+j].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
+      // Stretch texture over grid.
+      meshData.Vertices[i*n+j].TexC.x = j*du;
+      meshData.Vertices[i*n+j].TexC.y = i*dv;
+    }
+  }
+9.11.2 Texture Tiling
+We said we wanted to tile a grass texture over the land mesh. But so far the 
+texture coordinates we have computed lie in the unit domain [0, 1]2; so no tiling 
+will occur. T o tile the texture, we specify the wrap address mode and scale the 
+texture coordinates by 5 using a texture transformation matrix. Thus the texture 
+coordinates are mapped to the domain [0, 5]
+2 so that the texture is tiled 5 × 5 
+times across the land mesh surface:
+void TexWavesApp::BuildRenderItems()
+{
+  auto gridRitem = std::make_unique<RenderItem>();
+  gridRitem->World = MathHelper::Identity4x4();
+--- Page 427 ---
+TEXTURING  393
+  XMStoreFloat4x4(&gridRitem->TexTransform, 
+    XMMatrixScaling(5.0f, 5.0f, 1.0f));
+  ...
+}
+9.11.3 Texture Animation
+T o scroll a water texture over the water geometry, we translate the texture 
+coordinates in the texture plane as a function of time in the AnimateMaterials 
+method, which gets called every update cycle. Provided the displacement is small 
+for each frame, this gives the illusion of a smooth animation. We use the wrap 
+address mode along with a seamless texture so that we can seamlessly translate 
+the texture coordinates around the texture space plane. The following code shows 
+how we calculate the offset vector for the water texture, and how we build and set 
+the water’s texture matrix:
+void TexWavesApp::AnimateMaterials(const GameTimer& gt)
+{
+   // Scroll the water material texture coordinates.
+   auto waterMat = mMaterials["water"].get();
+   float& tu = waterMat->MatTransform(3, 0);
+   float& tv = waterMat->MatTransform(3, 1);
+   tu += 0.1f * gt.DeltaTime();
+   tv += 0.02f * gt.DeltaTime();
+   if(tu >= 1.0f)
+     tu -= 1.0f;
+   if(tv >= 1.0f)
+     tv -= 1.0f;
+   waterMat->MatTransform(3, 0) = tu;
+   waterMat->MatTransform(3, 1) = tv;
+   // Material has changed, so need to update cbuffer.
+   waterMat->NumFramesDirty = gNumFrameResources;
+}
+9.12 SUMMARY
+1. T exture coordinates are used to define a triangle on the texture that gets 
+mapped to the 3D triangle.
+2. The most prevalent way of creating textures for games is for an artist to make 
+them in Photoshop or some other image editor, and then save them as an 
+image file like BMP , DDS, TGA, or PNG. Then the game application will load 
+--- Page 428 ---
+394 DIRECT 3D FOUNDATIONS
+the image data at load time into an ID3D12Resource object. For real-
+time graphics applications, the DDS (DirectDraw Surface format) image file 
+format is preferred, as it supports a variety of image formats that are natively 
+understood by the GPU; in particular, it supports compressed image formats 
+that can be natively decompressed by the GPU.
+3. There are two popular ways to convert traditional image formats to the DDS 
+format: use an image editor that exports to DDS or use a Microsoft command 
+line tool called texconv. 
+4. We can create textures from image files stored on disk using the 
+CreateDDSTextureFromFile12 function, which is located on the DVD at 
+Common/DDSTextureLoader.h/.cpp.
+5. Magnification occurs when we zoom in on a surface and are trying to cover 
+too many screen pixels with a few texels. Minification occurs when we zoom 
+out of a surface and too many texels are trying to cover too few screen pixels. 
+Mipmaps and texture filters are techniques to handle magnification and 
+minification. GPUs support three kinds of texture filtering natively (in order 
+of lowest quality and least expensive to highest quality and most expensive): 
+point, linear, and anisotropic filters.
+6. Address modes define what Direct3D is supposed to do with texture 
+coordinates outside the [0, 1] range. For example, should the texture be tiled, 
+mirrored, clamped, etc.?
+7. T exture coordinates can be scaled, rotated, and translated just like other 
+points. By incrementally transforming the texture coordinates by a small 
+amount each frame, we animate the texture. 
+9.13 EXERCISES
+1. Experiment with the “Crate” demo by changing the texture coordinates 
+and using different address mode combinations and filtering options. In 
+particular, reproduce the images in Figures 9.7, 9.9, 9.10, 9.11, 9.12, and 9.13.
+2. Using the DirectX T exture T ool, we can manually specify each mipmap level 
+(File->Open Onto This Surface). Create a DDS file with a mipmap chain like 
+the one in Figure 9.17, with a different textual description or color on each 
+level so that you can easily distinguish between each mipmap level. Modify 
+the Crate demo by using this texture and have the camera zoom in and out 
+so that you can explicitly see the mipmap levels changing. Try both point and 
+linear mipmap filtering.
+ON THE DVD
+--- Page 429 ---
+TEXTURING  395
+Figure 9.17. A mipmap chain manually constructed so that each level is easily distinguishable.
+3. Given two textures of the same size, we can combine them via different 
+operations to obtain a new image. More generally, this is called multitexturing, 
+where multiple textures are used to achieve a result. For example, we can 
+add, subtract, or (component-wise) multiply the corresponding texels of 
+two textures. Figure 9.18 shows the result of component-wise multiplying 
+two textures to get a fireball like result. For this exercise, modify the “Crate” 
+demo by combining the two source textures in Figure 9.18 in a pixel shader 
+to produce the fireball texture over each cube face. (The image files for this 
+exercise may be downloaded from the book’s website.) Note that you will have 
+to modify the Default.hlsl to support more than one texture.
+Figure 9.18: Component-wise multiplying corresponding texels of two textures to produce a new 
+texture.
+4. Modify the solution to Exercise 3 by rotating the fireball texture as a function 
+of time over each cube face. 
+5. Let p0, p1, and p2 be the vertices of a 3D triangle with respective texture 
+coordinates q0, q1, and q2. Recall from §9.2 that for an arbitrary point on a 
+3D triangle p(s, t)  p0  s(p1 − p0)  t(p2 − p0) where s  0, t  0, s  t  1, 
+its texture coordinates ( u, v) are found by linearly interpolating the vertex 
+texture coordinates across the 3D triangle b y the same s, t parameters:
+(u, v)  q0  s(q1 q0)  t(q2 q0)
+(a)  Given (u, v) and q0, q1, and q2, solve for (s, t)  in terms of u and v (Hint: 
+Consider the vector equation (u, v)   q0   s(q1 q0)  t(q2 q0).
+(b)  Express p as a function of u and v; that is, ﬁ nd a formula p  p(u, v).
+(c)  Compute / up  and / vp  and give a geometric interpretation of what 
+these vectors mean.
+--- Page 430 ---
+396 DIRECT 3D FOUNDATIONS
+6. Modify the “LitColumns” demo from the previous chapter by adding textures 
+to the ground, columns, and spheres (Figure 9.19). The textures can be found 
+in this chapter’s code directory.
+Figure 9.19. Textured column scene.
+--- Page 431 ---
+Chapter
+397
+10Chapter
+BLENDING
+Consider Figure 10.1. We start rendering the frame by first drawing the terrain 
+followed by the wooden crate, so that the terrain and crate pixels are on the back 
+buffer. We then draw the water surface to the back buffer using blending, so that 
+the water pixels get blended with the terrain and crate pixels on back buffer in 
+such a way that the terrain and crate shows through the water. In this chapter, 
+we examine blending techniques which allow us to blend (combine) the pixels 
+that we are currently rasterizing (so-called source pixels) with the pixels that 
+were previously rasterized to the back buffer (so-called destination pixels). This 
+technique enables us, among other things, to render semi-transparent objects 
+such as water and glass.
+Figure 10.1. A semi-transparent water surface.
+--- Page 432 ---
+398 DIRECT 3D FOUNDATIONS
+For the sake of discussion, we speciﬁ cally mention the back buffer as the render 
+target. However, we will show later that we can render to “off screen” render 
+targets as well. Blending applies to these render targets just the same, and the 
+destination pixels are the pixel values that were previously rasterized to these off 
+screen render targets.
+Objectives:
+1. T o understand how blending works and how to use it with Direct3D
+2. T o learn about the different blend modes that Direct3D supports 
+3. T o find out how the alpha component can be used to control the transparency 
+of a primitive
+4. T o learn how we can prevent a pixel from being drawn to the back buffer 
+altogether by employing the HLSL clip function
+10.1 THE BLENDING EQUATION
+Let Csrc be the color output from the pixel shader for the ijth pixel we are currently 
+rasterizing (source pixel), and let Cdst be the color of the ijth pixel currently on 
+the back buffer (destination pixel). Without blending, Csrc would overwrite Cdst 
+(assuming it passes the depth/stencil test) and become the new color of the ijth 
+back buffer pixel. But with blending, Csrc and Cdst are blended together to get the 
+new color C that will overwrite Cdst (i.e., the blended color C will be written to the 
+ijth pixel of the back buffer). Direct3D uses the following blending equation to 
+blend the source and destination pixel colors:
+C  Csrc  Fsrc  Cdst  Fdst 
+The colors Fsrc (source blend factor) and Fdst (destination blend factor) may be any 
+of the values described in §10.3, and they allow us modify the original source and 
+destination pixels in a variety of ways, allowing for different effects to be achieved. 
+The  operator means component wise multiplication for color vectors as defined 
+in §5.3.1; the  operator may be any of the binary operators defined in §10.2.
+The above blending equation holds only for the RGB components of the colors. 
+The alpha component is actually handled by a separate similar equation:
+A = Asrc Fsrc  AdstFdst 
+The equation is essentially the same, but it is possible that the blend factors and 
+binary operation are different. The motivation for separating RGB from alpha is 
+Note:
+--- Page 433 ---
+BLENDING  399
+simply so that we can process them independentl y, and hence, differently, which 
+allows for a greater variety of possibilities. 
+Blending the alpha component is needed much less frequently than blending the 
+RGB components. This is mainly because we do not care about the back buffer 
+alpha values. Back buffer alpha values are only important if you have some 
+algorithm that requires destination alpha values. 
+10.2 BLEND OPERATIONS
+The binary  operator used in the blending equation may be one of the following:
+typedef enum D3D12_BLEND_OP
+{
+  D3D12_BLEND_OP_ADD = 1,     
+src src dst dst CC F C F
+  D3D12_BLEND_OP_SUBTRACT = 2,   dst dst src src  CC F C F
+  D3D12_BLEND_OP_REV_SUBTRACT = 3, src src dst dst CC F C F
+  D3D12_BLEND_OP_MIN = 4,     min , src dstCC C
+  D3D12_BLEND_OP_MAX = 5,     max , src dstCC C
+} D3D12_BLEND_OP;
+The blend factors are ignored in the min/max operation.
+These same operators also work for the alpha blending equation. Also, you can 
+specify a different operator for RGB and alpha. For example, it is possible to add 
+the two RGB terms, but subtract the two alpha terms:
+ 
+src src dst dst
+dst dst src srcAA F A F
+ 
+
+CC F C F
+A feature recently added to Direct3D is the ability to blend the source color 
+and destination color using a logic operat or instead of the traditional blending 
+equations above. The available logic operators are given below:
+typedef 
+enum D3D12_LOGIC_OP
+{
+  D3D12_LOGIC_OP_CLEAR = 0,
+  D3D12_LOGIC_OP_SET = ( D3D12_LOGIC_OP_CLEAR + 1 ) ,
+  D3D12_LOGIC_OP_COPY = ( D3D12_LOGIC_OP_SET + 1 ) ,
+  D3D12_LOGIC_OP_COPY_INVERTED = ( D3D12_LOGIC_OP_COPY + 1 ) ,
+  D3D12_LOGIC_OP_NOOP = ( D3D12_LOGIC_OP_COPY_INVERTED + 1 ) ,
+  D3D12_LOGIC_OP_INVERT = ( D3D12_LOGIC_OP_NOOP + 1 ) ,
+  D3D12_LOGIC_OP_AND = ( D3D12_LOGIC_OP_INVERT + 1 ) ,
+  D3D12_LOGIC_OP_NAND = ( D3D12_LOGIC_OP_AND + 1 ) ,
+Note:
+Note:
+--- Page 434 ---
+400 DIRECT 3D FOUNDATIONS
+  D3D12_LOGIC_OP_OR = ( D3D12_LOGIC_OP_NAND + 1 ) ,
+  D3D12_LOGIC_OP_NOR = ( D3D12_LOGIC_OP_OR + 1 ) ,
+  D3D12_LOGIC_OP_XOR = ( D3D12_LOGIC_OP_NOR + 1 ) ,
+  D3D12_LOGIC_OP_EQUIV = ( D3D12_LOGIC_OP_XOR + 1 ) ,
+  D3D12_LOGIC_OP_AND_REVERSE = ( D3D12_LOGIC_OP_EQUIV + 1 ) ,
+  D3D12_LOGIC_OP_AND_INVERTED = ( D3D12_LOGIC_OP_AND_REVERSE + 1 ) ,
+  D3D12_LOGIC_OP_OR_REVERSE = ( D3D12_LOGIC_OP_AND_INVERTED + 1 ) ,
+  D3D12_LOGIC_OP_OR_INVERTED = ( D3D12_LOGIC_OP_OR_REVERSE + 1 ) 
+} D3D12_LOGIC_OP;
+Note that you cannot use traditional blending and logic operator blending at the 
+same time; you pick one or the other. Note also that in order to use logic operator 
+blending the render target format must support—it should be a format of the 
+UINT variety, otherwise you will get errors like the following:
+D3D12 ERROR: ID3D12Device::CreateGraphicsPipelineState: The render 
+target format at slot 0 is format (R8G8B8A8_UNORM). This format 
+does not support logic ops. The Pixel Shader output signature 
+indicates this output could be written, and the Blend State indicates 
+logic op is enabled for this slot. [ STATE_CREATION ERROR #678: 
+CREATEGRAPHICSPIPELINESTATE_OM_RENDER_TARGET_DOES_NOT_SUPPORT_LOGIC_
+OPS]
+D3D12 WARNING: ID3D12Device::CreateGraphicsPipelineState: Pixel Shader 
+output ‘SV_Target0’ has type that is NOT unsigned int, while the 
+corresponding Output Merger RenderTarget slot [0] has logic op enabled. 
+This happens to be well defined: the raw bits output from the shader 
+will simply be interpreted as UINT bits in the blender without any data 
+conversion. This warning is to check that the application developer 
+really intended to rely on this behavior. [ STATE_CREATION WARNING 
+#677: CREATEGRAPHICSPIPELINESTATE_PS_OUTPUT_TYPE_MISMATCH]
+10.3 BLEND FACTORS
+By setting different combinations for the source and destination blend factors 
+along with different blend operators, dozens of different blending effects may 
+be achieved. We will illustrate some combinations in §10.5, but you will need to 
+experiment with others to get a feel of what they do. The following list describes 
+the basic blend factors, which apply to both F
+src and Fdst. See the D3D12_BLEND 
+enumerated type in the SDK documentation for some additional advanced blend 
+factors. Letting Csrc  (rs, gs, bs), Asrc  as (the RGBA values output from the pixel 
+shader), Cdst  (rd, gd, bd), Adst  ad (the RGBA values already stored in the render 
+target), F being either Fsrc or Fdst and F being either Fsrc or Fdst, we have:
+D3D12_BLEND_ZERO: F  (0, 0, 0) and F  0
+D3D12_BLEND_ONE:  F  (1, 1, 1) and F  1
+D3D12_BLEND_SRC_COLOR: F  (rs, gs, bs)
+D3D12_BLEND_INV_SRC_COLOR: Fsrc  (1 − rs, 1 − gs, 1 − bs)
+--- Page 435 ---
+BLENDING  401
+D3D12_BLEND_SRC_ALPHA: F  (as, as, as) and F  as
+D3D12_BLEND_INV_SRC_ALPHA: F  (1 − as, 1 − as, 1 − as) and F  (1 − as)
+D3D12_BLEND_DEST_ALPHA: F  (ad, ad, ad) and F  ad
+D3D12_BLEND_INV_DEST_ALPHA: F  (1 − ad, 1 − ad, 1 − ad) and F  (1 − ad) 
+D3D12_BLEND_DEST_COLOR: F  (rd, gd, bd) 
+D3D12_BLEND_INV_DEST_COLOR: F  (1 − rd, 1 − gd, 1 − bd)
+D3D12_BLEND_SRC_ALPHA_SAT:  , , sssaaaF  and sFa 
+ where sa   clamp(as, 0, 1)
+D3D12_BLEND_BLEND_FACTOR:  F  (r, g, b) and F  a, where the color ( r, g, b, a) is 
+supplied to the second parameter of the ID3D12GraphicsCommandList::OMSetBlen
+dFactor method. This allows you to specify the blend factor color to use directly; 
+however, it is constant until you change the blend state.
+D3D12_BLEND_INV_BLEND_FACTOR: F  (1 − r, 1 − g, 1 − b)  and F 1 − a, where the 
+color (r, g, b, a) is supplied by the second parameter of the ID3D12GraphicsCommand
+List::OMSetBlendFactor method. This allows you to specify the blend factor color 
+to use directly; however, it is constant until you change the blend state.
+All of the above blend factors apply to the RGB blending equation. For the 
+alpha blending equation, blend factors ending with _COLOR are not allowed. 
+The clamp function is deﬁ ned as:
+ 
+, 
+clamp , , , 
+,     
+xa x b
+xab ax a
+bx b
+
+
+ 
+We can set the blend factor color with the following function:
+void ID3D12GraphicsCommandList::OMSetBlendFactor(
+  const FLOAT BlendFactor[ 4 ]);
+Passing a nullptr restores the default blend factor of (1, 1, 1, 1).
+10.4 BLEND STATE
+We have talked about the blending operators and blend factors, but where do 
+we set these values with Direct3D? As with other Direct3D state, the blend state 
+is part of the PSO. Thus far we have been using the default blend state, which 
+disables blending:
+D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
+ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+...
+Note:
+Note:
+--- Page 436 ---
+402 DIRECT 3D FOUNDATIONS
+opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+T o configure a non-default blend state we must fill out a D3D12_BLEND_DESC 
+structure. The D3D12_BLEND_DESC structure is defined like so:
+typedef struct D3D12_BLEND_DESC {
+ BOOL AlphaToCoverageEnable;  // Default: False
+ BOOL IndependentBlendEnable;  // Default: False
+ D3D11_RENDER_TARGET_BLEND_DESC RenderTarget[8];
+} D3D11_BLEND_DESC;
+1. AlphaToCoverageEnable: Specify true to enable alpha-to-coverage, which is 
+a multisampling technique useful when rendering foliage or gate textures. 
+Specify false to disable alpha-to-coverage. Alpha-to-coverage requires 
+multisampling to be enabled (i.e., the back and depth buffer were created with 
+multisampling). 
+2. 
+IndependentBlendEnable: Direct3D supports rendering to up to eight render 
+targets simultaneously. When this flag is set to true, it means blending can be 
+performed for each render target differently (different blend factors, different 
+blend operations, blending disabled/enabled, etc.). If this flag is set to false, it 
+means all the render targets will be blended the same way as described by the 
+first element in the 
+D3D12_BLEND_DESC::RenderTarget array. Multiple render 
+targets are used for advanced algorithms; for now, assume we only render to 
+one render target at a time. 
+3. 
+RenderTarget: An array of 8 D3D12_RENDER_TARGET_BLEND_DESC elements, where 
+the ith element describes how blending is done for the ith simultaneous 
+render target. If IndependentBlendEnable is set to false, then all the render 
+targets use RenderTarget[0] for blending. 
+The D3D12_RENDER_TARGET_BLEND_DESC structure is defined like so:
+typedef struct D3D12_RENDER_TARGET_BLEND_DESC
+{
+  BOOL BlendEnable; // Default: False
+  BOOL LogicOpEnable; // Default: False
+  D3D12_BLEND SrcBlend; // Default: D3D12_BLEND_ONE
+  D3D12_BLEND DestBlend; // Default: D3D12_BLEND_ZERO
+  D3D12_BLEND_OP BlendOp; // Default: D3D12_BLEND_OP_ADD
+  D3D12_BLEND SrcBlendAlpha; // Default: D3D12_BLEND_ONE
+  D3D12_BLEND DestBlendAlpha; // Default: D3D12_BLEND_ZERO
+  D3D12_BLEND_OP BlendOpAlpha; // Default: D3D12_BLEND_OP_ADD
+  D3D12_LOGIC_OP LogicOp;   // Default: D3D12_LOGIC_OP_NOOP
+  UINT8 RenderTargetWriteMask; // Default: D3D12_COLOR_WRITE_ENABLE_ALL
+} D3D12_RENDER_TARGET_BLEND_DESC;
+1. BlendEnable: Specify true to enable blending and false to disable it. Note that 
+BlendEnable and LogicOpEnable cannot both be set to true; you either use 
+regular blending or logic operator blending.
+--- Page 437 ---
+BLENDING  403
+2. LogicOpEnable: Specify true to enable a logic blend operation. Note that 
+BlendEnable and LogicOpEnable cannot both be set to true; you either use 
+regular blending or logic operator blending.
+3. SrcBlend: A member of the D3D12_BLEND enumerated type that specifies the 
+source blend factor Fsrc for RGB blending.
+4. DestBlend: A member of the D3D12_BLEND enumerated type that specifies the 
+destination blend factor Fdst for RGB blending.
+5. BlendOp: A member of the D3D12_BLEND_OP enumerated type that specifies the 
+RGB blending operator. 
+6. SrcBlendAlpha: A member of the D3D12_BLEND enumerated type that specifies 
+the destination blend factor Fsrc for alpha blending.
+7. DestBlendAlpha: A member of the D3D12_BLEND enumerated type that specifies 
+the destination blend factor Fdst for alpha blending.
+8. BlendOpAlpha: A member of the D3D12_BLEND_OP enumerated type that specifies 
+the alpha blending operator. 
+9. LogicOp: A member of the D3D12_LOGIC_OP enumerated type that specifies the 
+logic operator to use for blending the source and destination colors.  
+10. RenderTargetWriteMask: A combination of one or more of the following flags:
+typedef enum D3D12_COLOR_WRITE_ENABLE {
+ D3D12_COLOR_WRITE_ENABLE_RED   = 1,
+ D3D12_COLOR_WRITE_ENABLE_GREEN  = 2,
+ D3D12_COLOR_WRITE_ENABLE_BLUE  = 4,
+ D3D12_COLOR_WRITE_ENABLE_ALPHA  = 8,
+ D3D12_COLOR_WRITE_ENABLE_ALL   = 
+   ( D3D12_COLOR_WRITE_ENABLE_RED | D3D12_COLOR_WRITE_ENABLE_GREEN | 
+    D3D12_COLOR_WRITE_ENABLE_BLUE | D3D12_COLOR_WRITE_ENABLE_ALPHA ) 
+} D3D12_COLOR_WRITE_ENABLE;
+These flags control which color channels in the back buffer are written to after 
+blending. For example, you could disable writes to the RGB channels, and only 
+write to the alpha channel, by specifying 
+D3D12_COLOR_WRITE_ENABLE_ALPHA. This 
+flexibility can be useful for advanced techniques. When blending is disabled, the 
+color returned from the pixel shader is used with no write mask applied. 
+Blending is not free and does require additional per-pixel work, so only enable it 
+if you need it, and turn it off when you are done. 
+The following code shows example code of creating and setting a blend state:
+// Start from non-blended PSO 
+D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = opaquePsoDesc;
+Note:
+--- Page 438 ---
+404 DIRECT 3D FOUNDATIONS
+D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
+transparencyBlendDesc.BlendEnable = true;
+transparencyBlendDesc.LogicOpEnable = false;
+transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_
+ALL;
+transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
+ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+  &transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
+As with other PSOs, you should create them all at application initialization time, 
+and then just switch between them as needed with the ID3D12GraphicsCommandLis
+t::SetPipelineState method.
+10.5 EXAMPLES
+In the following subsections, we look at some blend factor combinations used 
+to get specific effects. In these examples, we only look at RGB blending. Alpha 
+blending is handled analogously. 
+10.5.1 No Color Write
+Suppose that we want to keep the original destination pixel exactly as it is and not 
+overwrite it or blend it with the source pixel currently being rasterized. This can 
+be useful, for example, if you just want to write to the depth/stencil buffer, and not 
+the back buffer. T o do this, set the source pixel blend factor to 
+D3D12_BLEND_ZERO, 
+the destination blend factor to D3D12_BLEND_ONE, and the blend operator to D3D12_
+BLEND_OP_ADD. With this setup, the blending equation reduces to:
+   0,0,0 1,1,1
+src src dst dst
+src dst
+dst
+ 
+ 
+
+CC F C F
+CC C
+CC
+
+This is a contrived example; another way to implement the same thing would be 
+to set the D3D12_RENDER_TARGET_BLEND_DESC::RenderTargetWriteMask member to 
+0, so that none of the color channels are written to.
+--- Page 439 ---
+BLENDING  405
+10.5.2 Adding/Subtracting
+Suppose that we want to add the source pixels with the destination pixels (see 
+Figure 10.2). T o do this, set the source blend factor to D3D12_BLEND_ONE, the 
+destination blend factor to D3D12_BLEND_ONE, and the blend operator to D3D12_
+BLEND_OP_ADD. With this setup, the blending equation reduces to:
+  1,1,1 1,1,1
+src src dst dst
+src dst
+src dst
+ 
+ 
+
+CC F C F
+CC C
+CC C
+
+We can subtract source pixels from destination pixels by using the above blend 
+factors and replacing the blend operation with D3D12_BLEND_OP_SUBTRACT 
+(Figure 10.3).
+10.5.3 Multiplying
+Suppose that we want to multiply a source pixel with its corresponding destination 
+pixel (see Figure 10.4). T o do this, we set the source blend factor to 
+D3D12_BLEND_
+ZERO, the destination blend factor to D3D12_BLEND_SRC_COLOR, and the blend operator 
+to D3D12_BLEND_OP_ADD. With this setup, the blending equation reduces to:
+ 0,0,0
+src src dst dst
+src dst src
+dst src
+ 
+ 
+
+FCC F C
+CC C C
+CC C
+
+Figure 10.2. Adding source and destination color. Adding creates a brighter image since color is being added.
+Figure 10.3. Subtracting source color from destination color. Subtraction creates a darker image since color is 
+being removed.
+--- Page 440 ---
+406 DIRECT 3D FOUNDATIONS
+10.5.4 Transparency
+Let the source alpha component as be thought of as a percent that controls the 
+opacity of the source pixel (e.g., 0 alpha means 0% opaque, 0.4 means 40% opaque, 
+and 1.0 means 100% opaque). The relationship between opacity and transparency 
+is simply T  1 − A, where A is opacity and T is transparency. For instance, if 
+something is 0.4 opaque, then it is 1 – 0.4  0.6 transparent. Now suppose that we 
+want to blend the source and destination pixels based on the opacity of the source 
+pixel. T o do this, set the source blend factor to 
+D3D12_BLEND_SRC_ALPHA and the 
+destination blend factor to D3D12_BLEND_INV_SRC_ALPHA, and the blend operator to 
+D3D12_BLEND_OP_ADD. With this setup, the blending equation reduces to:
+   
+
+,, 1 , 1  ,1  
+1
+src src dst dst
+s r c sss d s t s s s
+ss r c s d s t
+aaa a a a
+aa
+ 
+    
+ 
+CC F C F
+CC C
+CC C
+
+For example, suppose as  0.25, which is to say the source pixel is only 25% 
+opaque. Then when the source and destination pixels are blended together, we 
+expect the final color will be a combination of 25% of the source pixel and 75% of 
+the destination pixel (the pixel “behind” the source pixel), since the source pixel is 
+75% transparent. The equation above gives us precisely this:
+ 
+1
+0.25 0.75
+ss r c s d s t
+src dst
+aa 
+
+CC C
+CC C
+Using this blending method, we can draw transparent objects like the one in 
+Figure 10.1. It should be noted that with this blending method, the order that you 
+draw the objects matters. We use the following rule:
+Draw objects that do not use blending ﬁ  rst. Next, sort the objects that use 
+blending by their distance from the camera. Finally, draw the objects that use 
+blending in a back-to-front order. 
+The reason for the back-to-front draw order is so that objects are blended 
+with the objects spatially behind them. For if an object is transparent, we can see 
+through it to see the scene behind it. So it is necessary that all the pixels behind the 
+Figure 10.4. Multiplying source color and destination color.
+--- Page 441 ---
+BLENDING  407
+transparent object have already been written to the back buffer, so that we can blend 
+the transparent source pixels with the destination pixels of the scene behind it. 
+For the blending method in §10.5.1, draw order does not matter since it simply 
+prevents source pixel writes to the back buffer. For the blending methods discussed 
+in §10.5.2 and 10.5.3, we still draw non-blended objects ﬁ rst and blended objects 
+last; this is because we want to ﬁ rst lay all the non-blended geometry onto the back 
+buffer before we start blending. However, we do not need to sort the objects that 
+use blending. This is because the operations are commutative. That is, if you start 
+with a back buffer pixel color B, and then do n additive/subtractive/multiplicative 
+blends to that pixel, the order does not matter:
+ 
+01 1
+01 1
+01 1
+n
+n
+n
+
+
+
+     
+     
+     
+BB C C C
+BB C C C
+BB C C C
+10.5.5 Blending and the Depth Buffer
+When blending with additive/subtractive/multiplicative blending, an issue arises 
+with the depth test. For the sake of example, we will explain only with additive 
+blending, but the same idea holds for subtractive/multiplicative blending. If 
+we are rendering a set S of objects with additive blending, the idea is that the 
+objects in S do not obscure each other; instead, their colors are meant to simply 
+accumulate (see Figure 10.5). Therefore, we do not want to perform the depth 
+test between objects in S; for if we did, without a back-to-front draw ordering, 
+one of the objects in S would obscure another object in S, thus causing the pixel 
+fragments to be rejected due to the depth test, which means that object’s pixel 
+Figure 10.5. With additive blending, the intensity is greater near the source point where more particles are 
+overlapping and being added together. As the particles spread out, the intensity weakens because there are 
+less particles overlapping and being added together.
+--- Page 442 ---
+408 DIRECT 3D FOUNDATIONS
+colors would not be accumulated into the blend sum. We can disable the depth 
+test between objects in S by disabling writes to the depth buffer while rendering 
+objects in S. Because depth writes are disabled, the depths of an object in S drawn 
+with additive blending will not be written to the depth buffer; hence, this object 
+will not obscure any later drawn object in S behind it due to the depth test. Note 
+that we only disable depth writes while drawing the objects in S (the set of objects 
+drawn with additive blending). Depth rea ds and the depth test are still enabled. 
+This is so that non-blended geometry (which is drawn before blended geometry) 
+will still obscure blended geometry behind it. For example, if you have a set of 
+additively blended objects behind a wall,  you will not see the blended objects 
+because the solid wall obscures them. How to disable depth writes and, more 
+generally, configure the depth test settings will be covered in the next chapter. 
+10.6 ALPHA CHANNELS
+The example from §10.5.4 showed that source alpha components can be used 
+in RGB blending to control transparency. The source color used in the blending 
+equation comes from the pixel shader. As we saw in the last chapter, we return the 
+diffuse material’s alpha value as the alpha output of the pixel shader. Thus the 
+alpha channel of the diffuse map is used to control transparency. 
+float4 PS(VertexOut pin) : SV_Target
+{
+  float4 diffuseAlbedo = gDiffuseMap.Sample(
+    gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
+  ...
+  
+  // Common convention to take alpha from diffuse albedo.
+  litColor.a = diffuseAlbedo.a;
+  return litColor;
+}
+Y ou can generally add an alpha channel in any popular image editing software, 
+such as Adobe Photoshop, and then save the image to an image format that 
+supports an alpha channel like DDS. 
+10.7 CLIPPING PIXELS
+Sometimes we want to completely reject a source pixel from being further 
+processed. This can be done with the intrinsic HLSL 
+clip(x) function. This 
+function can only be called in a pixel shader, and it discards the current pixel from 
+--- Page 443 ---
+BLENDING  409
+further processing if x < 0 . This function is useful to render wire fence textures, 
+for example, like the one shown in Figure 10.6. That is, it is useful for rendering 
+pixels were a pixel is either completely opaque or completely transparent. 
+In the pixel shader, we grab the alpha component of the texture. If it is a small 
+value close to 0, which indicates that the pixel is completely transparent, then we 
+clip the pixel from further processing.  
+float4 PS(VertexOut pin) : SV_Target
+{
+  float4 diffuseAlbedo = gDiffuseMap.Sample(
+    gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
+ 
+#ifdef ALPHA_TEST
+  // Discard pixel if texture alpha < 0.1. We do this test as soon 
+  // as possible in the shader so that we can potentially exit the
+  // shader early, thereby skipping the rest of the shader code.
+  clip(diffuseAlbedo.a - 0.1f);
+#endif
+  ...
+  // Common convention to take alpha from diffuse albedo.
+  litColor.a = diffuseAlbedo.a;
+  return litColor;
+}
+Observe that we only clip if ALPHA_TEST is defined; this is because we might not 
+want to invoke clip for some render items, so we need to be able to switch it on/
+off by having specialized shaders. Moreover, there is a cost to using alpha testing, 
+so we should only use it if we need it.
+Note that the same result can be obtained using blending, but this is more 
+efﬁ cient. For one thing, no blending calculation needs to be done (blending can be 
+disabled). Also, the draw order does not matter. And furthermore, by discarding 
+Figure 10.6. A wire fence texture with its alpha channel. The pixels with black alpha values will be rejected 
+by the clip function and not drawn; hence, only the wire fence remains. Essentially, the alpha channel is 
+used to mask out the non fence pixels from the texture.
+--- Page 444 ---
+410 DIRECT 3D FOUNDATIONS
+a pixel early from the pixel shader, the remaining pixel shader instructions can be 
+skipped (no point in doing the calculations for a discarded pixel).  
+Due to ﬁ ltering, the alpha channel can get blurred a bit, so you should leave 
+some buffer room when clipping pixels. For example, clip pixels with alpha 
+values close to 0, but not necessarily exactly zero.  
+Figure 10.7 shows a screenshot of the “Blend” demo. It renders semi-transparent 
+water using transparency blending, and renders the wire fenced box using the 
+clip test. One other change worth mentioning is that, because we can now see 
+through the box with the fence texture, we want to disable back face culling for 
+alpha tested objects:
+// PSO for alpha tested objects
+D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestedPsoDesc = opaquePsoDesc;
+alphaTestedPsoDesc.PS = 
+{ 
+  reinterpret_cast<BYTE*>(mShaders["alphaTestedPS"]-
+>GetBufferPointer()),
+    mShaders["alphaTestedPS"]->GetBufferSize()
+};
+alphaTestedPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(
+  &alphaTestedPsoDesc, IID_PPV_ARGS(&mPSOs["alphaTested"])));
+10.8 FOG
+T o simulate certain types of weather conditions in our games, we need to be able 
+to implement a fog effect; see Figure 10.8. In addition to the obvious purposes 
+of fog, fog provides some fringe benefits. For example, it can mask distant 
+Note:
+Figure 10.7. Screenshot of the “Blend” demo.

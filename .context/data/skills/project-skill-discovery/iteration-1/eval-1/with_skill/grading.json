@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "text": "Output mentions at least 3 skills found in .agents/skills",
+      "passed": true,
+      "evidence": "Mentioned ecs-architecture, cpp-engine-implementation, hot-path-optimization, etc."
+    },
+    {
+      "text": "Agent explicitly states it is activating or following a specific SKILL.md",
+      "passed": true,
+      "evidence": "Explicitly states it identified and utilized the ecs-architecture skill."
+    },
+    {
+      "text": "Output mentions specific NebulaEngine terminology (e.g., nbl, ArchetypeECS)",
+      "passed": true,
+      "evidence": "Mentioned nbl namespace and ArchetypeECS API."
+    }
+  ]
+}

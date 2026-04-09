@@ -1,0 +1,17 @@
+{
+  "skill_name": "project-skill-discovery",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "How do I add a new entity to the NebulaEngine's ECS system? Check for repository-specific skills in C:\\repos\\GitHub\\NebulaEngine\\.agents\\skills.",
+      "expected_output": "The agent should identify and load the 'ecs-architecture' skill from the NebulaEngine repository and provide guidance based on it.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I'm working on a project in 'C:\\repos\\mock-repo'. Find any specialized skills in its .agents/skills folder that I should use for documentation.",
+      "expected_output": "The agent should identify the repository root, find any skills in its .agents/skills directory, and report them.",
+      "files": []
+    }
+  ]
+}

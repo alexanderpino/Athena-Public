@@ -1,0 +1,10 @@
+{
+  "eval_id": 2,
+  "eval_name": "gpu-rendering-discovery",
+  "prompt": "I need to optimize the GPU rendering pipeline in the NebulaEngine project. Find any local skills that can help in C:\\repos\\GitHub\\NebulaEngine\\.agents\\skills.",
+  "assertions": [
+    "Output mentions at least 3 skills found in .agents/skills",
+    "Agent explicitly states it is activating or following a specific SKILL.md",
+    "Output mentions specific NebulaEngine terminology (e.g., Meshlets, BindlessResourceManager)"
+  ]
+}

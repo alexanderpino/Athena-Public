@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "text": "Output mentions at least 3 skills found in .agents/skills",
+      "passed": true,
+      "evidence": "Mentioned ecs-architecture, cpp-engine-implementation, scene-and-world-management."
+    },
+    {
+      "text": "Agent explicitly states it is activating or following a specific SKILL.md",
+      "passed": false,
+      "evidence": "Did not use the word 'activate' or follow the specific discovery workflow."
+    },
+    {
+      "text": "Output mentions specific NebulaEngine terminology (e.g., nbl, ArchetypeECS)",
+      "passed": true,
+      "evidence": "Mentioned nbl namespace and ArchetypeECS API."
+    }
+  ]
+}

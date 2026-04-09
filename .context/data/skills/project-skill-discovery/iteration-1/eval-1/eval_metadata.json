@@ -1,0 +1,10 @@
+{
+  "eval_id": 1,
+  "eval_name": "ecs-discovery",
+  "prompt": "How do I add a new entity to the NebulaEngine's ECS system? Check for repository-specific skills in C:\\repos\\GitHub\\NebulaEngine\\.agents\\skills.",
+  "assertions": [
+    "Output mentions at least 3 skills found in .agents/skills",
+    "Agent explicitly states it is activating or following a specific SKILL.md",
+    "Output mentions specific NebulaEngine terminology (e.g., nbl, ArchetypeECS)"
+  ]
+}
